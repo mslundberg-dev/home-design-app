@@ -223,6 +223,31 @@ body {
   cursor: not-allowed;
 }
 
+.export-btn-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-export {
+  padding: 6px 14px;
+  background: white;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.btn-export:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .floor-editor-header {
   display: flex;
   align-items: center;
@@ -257,6 +282,24 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.toolbar-snap-label {
+  gap: 6px;
+}
+
+.grid-size-select {
+  padding: 3px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+  cursor: pointer;
+}
+
+.grid-size-select:focus {
+  outline: none;
+  border-color: #2563eb;
 }
 
 .toolbar-sep {

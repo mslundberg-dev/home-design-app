@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import engine
+from app.routers.export import router as export_router
 from app.routers.floors import router as floors_router
 from app.routers.projects import router as projects_router
 
@@ -19,6 +20,7 @@ app.add_middleware(
 
 app.include_router(projects_router, prefix="/api")
 app.include_router(floors_router, prefix="/api")
+app.include_router(export_router, prefix="/api")
 
 
 @app.get("/api/health")

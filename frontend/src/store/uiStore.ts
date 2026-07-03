@@ -26,6 +26,7 @@ interface UIState {
   setPan: (pan: { x: number; y: number }) => void
   toggleSnapToGrid: () => void
   toggleSnapToAngle: () => void
+  setGridSize: (inches: number) => void
   setUnitDisplay: (unit: UnitDisplay) => void
 }
 
@@ -36,7 +37,7 @@ export const useUIStore = create<UIState>((set) => ({
   pan: { x: 40, y: 40 },
   snapToGridEnabled: true,
   snapToAngleEnabled: true,
-  gridSizeInches: 6,
+  gridSizeInches: 1,
   unitDisplay: 'imperial',
 
   setActiveTool: (tool) => set({ activeTool: tool, selectedItem: null }),
@@ -45,5 +46,6 @@ export const useUIStore = create<UIState>((set) => ({
   setPan: (pan) => set({ pan }),
   toggleSnapToGrid: () => set((s) => ({ snapToGridEnabled: !s.snapToGridEnabled })),
   toggleSnapToAngle: () => set((s) => ({ snapToAngleEnabled: !s.snapToAngleEnabled })),
+  setGridSize: (inches) => set({ gridSizeInches: inches }),
   setUnitDisplay: (unit) => set({ unitDisplay: unit }),
 }))

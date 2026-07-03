@@ -5,6 +5,29 @@ import { computeZoomAroundPoint } from '../canvas/scale'
 
 const ZOOM_STEP = 1.2
 
+// Grid size options: value in inches, label shown in the dropdown.
+// Imperial fractions down to 1/32"; metric mm steps.
+const IMPERIAL_GRID_OPTIONS: { value: number; label: string }[] = [
+  { value: 12,       label: '1 ft'   },
+  { value: 6,        label: '6 in'   },
+  { value: 3,        label: '3 in'   },
+  { value: 1,        label: '1 in'   },
+  { value: 0.5,      label: '1/2 in' },
+  { value: 0.25,     label: '1/4 in' },
+  { value: 0.125,    label: '1/8 in' },
+  { value: 0.0625,   label: '1/16 in'},
+  { value: 0.03125,  label: '1/32 in'},
+]
+
+const METRIC_GRID_OPTIONS: { value: number; label: string }[] = [
+  { value: 39.3701,  label: '1 m'   },
+  { value: 19.6850,  label: '50 cm' },
+  { value: 3.93701,  label: '10 cm' },
+  { value: 0.393701, label: '1 cm'  },
+  { value: 0.196850, label: '5 mm'  },
+  { value: 0.039370, label: '1 mm'  },
+]
+
 export function Toolbar() {
   const activeTool = useUIStore((s) => s.activeTool)
   const setActiveTool = useUIStore((s) => s.setActiveTool)
@@ -12,6 +35,9 @@ export function Toolbar() {
   const snapToAngleEnabled = useUIStore((s) => s.snapToAngleEnabled)
   const toggleSnapToGrid = useUIStore((s) => s.toggleSnapToGrid)
   const toggleSnapToAngle = useUIStore((s) => s.toggleSnapToAngle)
+  const gridSizeInches = useUIStore((s) => s.gridSizeInches)
+  const setGridSize = useUIStore((s) => s.setGridSize)
+  const unitDisplay = useUIStore((s) => s.unitDisplay)
   const zoom = useUIStore((s) => s.zoom)
   const pan = useUIStore((s) => s.pan)
   const setZoom = useUIStore((s) => s.setZoom)
@@ -19,6 +45,13 @@ export function Toolbar() {
   const undo = useFloorStore((s) => s.undo)
   const redo = useFloorStore((s) => s.redo)
   const geometry = useFloorStore((s) => s.geometry)
+
+  const gridOptions = unitDisplay === 'metric' ? METRIC_GRID_OPTIONS : IMPERIAL_GRID_OPTIONS
+
+  // Find closest option value to current gridSizeInches (handles unit-switch drift)
+  const selectedValue = gridOptions.reduce((best, opt) =>
+    Math.abs(opt.value - gridSizeInches) < Math.abs(best.value - gridSizeInches) ? opt : best
+  ).value
 
   function handleFitToView() {
     const fit = computeFitZoomAndPan(geometry, STAGE_WIDTH, STAGE_HEIGHT)
@@ -47,8 +80,18 @@ export function Toolbar() {
         Draw Wall
       </button>
       <span className="toolbar-sep" />
-      <label>
-        <input type="checkbox" checked={snapToGridEnabled} onChange={toggleSnapToGrid} /> Snap to grid
+      <label className="toolbar-snap-label">
+        <input type="checkbox" checked={snapToGridEnabled} onChange={toggleSnapToGrid} /> Snap
+        <select
+          className="grid-size-select"
+          value={selectedValue}
+          onChange={(e) => setGridSize(Number(e.target.value))}
+          title="Grid size"
+        >
+          {gridOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </label>
       <label>
         <input type="checkbox" checked={snapToAngleEnabled} onChange={toggleSnapToAngle} /> Snap to 15°

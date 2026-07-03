@@ -46,3 +46,19 @@ export const saveFloorGeometry = (floorId: number, geometry: FloorGeometry): Pro
 
 export const deleteFloor = (floorId: number): Promise<void> =>
   request('DELETE', `/floors/${floorId}`)
+
+// ── Export ───────────────────────────────────────────────────────────────────
+
+export async function exportFloorPdf(floorId: number): Promise<void> {
+  const res = await fetch(`${BASE}/floors/${floorId}/export-pdf`, { method: 'POST' })
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  a.download = match ? match[1] : `floor-${floorId}.pdf`
+  a.href = url
+  a.click()
+  URL.revokeObjectURL(url)
+}
