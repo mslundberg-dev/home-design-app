@@ -61,8 +61,8 @@ post-v1 phase — the data model (per-edge wall thickness, floor elevation,
 ordered polygon vertices) is designed so that doesn't require a schema
 change later.
 
-- [ ] M0 — Scaffold & boot
-- [ ] M1 — Draw & edit rooms with snapping + live dimension/area labels
+- [x] M0 — Scaffold & boot
+- [x] M1 — Draw & edit rooms with snapping + live dimension/area labels
 - [ ] M2 — Doors/windows + freestanding walls
 - [ ] M3 — Persistence (save/load projects via the backend)
 - [ ] M4 — PDF export
