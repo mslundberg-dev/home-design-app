@@ -13,6 +13,216 @@ body {
   padding: 16px 24px;
 }
 
+/* ── Page layout ──────────────────────────────────────────────────────────── */
+
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page h1 {
+  margin: 0 0 20px;
+  font-size: 24px;
+}
+
+.page h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: #374151;
+}
+
+.page-nav {
+  margin-bottom: 16px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.create-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.create-form input {
+  flex: 1;
+  min-width: 180px;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.create-form input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.create-form button {
+  padding: 7px 14px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.create-form button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* ── Project / floor list ────────────────────────────────────────────────── */
+
+.project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-card {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+
+.project-card:hover {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.12);
+}
+
+.project-card-body {
+  flex: 1;
+}
+
+.project-name {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+
+.project-address {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 2px;
+}
+
+.project-meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #2563eb;
+  padding: 0;
+}
+
+.btn-back:hover {
+  text-decoration: underline;
+}
+
+.btn-danger-sm {
+  padding: 4px 10px;
+  border: 1px solid #fca5a5;
+  background: white;
+  color: #dc2626;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.btn-danger-sm:hover {
+  background: #fef2f2;
+}
+
+/* ── Editor top bar ──────────────────────────────────────────────────────── */
+
+.editor-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: white;
+  border-bottom: 1px solid #d1d5db;
+  height: 44px;
+}
+
+.editor-floor-name {
+  font-weight: 600;
+  font-size: 15px;
+  flex: 1;
+}
+
+.editor-save-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-status {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.save-status.dirty {
+  color: #d97706;
+}
+
+.save-error {
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.btn-save {
+  padding: 6px 16px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn-save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .floor-editor-header {
   display: flex;
   align-items: center;

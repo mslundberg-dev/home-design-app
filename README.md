@@ -228,8 +228,8 @@ three.js viewer later requires no schema change.
 | M0 | Scaffold & boot | Repo skeleton, `docker compose up` → db + backend + frontend, Alembic migration for `projects`/`floors`, `/api/health` | ✅ Done |
 | M1 | Draw & edit rooms | Konva canvas, `DrawRoomTool` (click vertices, close polygon), snap-to-grid + snap-to-15°, live dimension labels per edge + room area, `SelectTool` drag-to-move vertex and wall, undo/redo, zoom controls | ✅ Done |
 | M2 | Doors/windows + freestanding walls | `DrawWallTool`, `PlaceOpeningTool` with typed width via `PropertiesPanel`, door-swing arc glyph, window double-line glyph, opening offset validation against host wall length | ✅ Done |
-| M3 | Persistence | `ProjectListPage` / `ProjectDetailPage`, editor loads geometry on mount, Save button PUTs whole geometry blob, dirty-flag warning on navigate-away | ⬜ Next |
-| M4 | PDF export | `export.py` + `pdf/` rendering: title block (name, date, scale), to-scale rooms/walls, dimension + area text, north arrow, scale bar | ⬜ Planned |
+| M3 | Persistence | `ProjectListPage` / `ProjectDetailPage`, editor loads geometry on mount, Save button PUTs whole geometry blob, dirty-flag warning on navigate-away | ✅ Done |
+| M4 | PDF export | `export.py` + `pdf/` rendering: title block (name, date, scale), to-scale rooms/walls, dimension + area text, north arrow, scale bar | ⬜ Next |
 
 ### Demo criteria
 
