@@ -5,18 +5,21 @@ import { useFloorStore } from '../store/floorStore'
 import { useUIStore } from '../store/uiStore'
 import { Grid } from './Grid'
 import { RoomShape } from './RoomShape'
+import { WallShape } from './WallShape'
 import { computeZoomAroundPoint, screenToWorld, worldToScreen } from './scale'
 import { snapPoint } from './snapping'
 import { isCloseToFirstVertex, MIN_ROOM_VERTICES } from './tools/drawRoom'
 import { STAGE_WIDTH, STAGE_HEIGHT, computeFitZoomAndPan } from './fitView'
 import { MIN_ZOOM, MAX_ZOOM } from '../store/uiStore'
-import type { Point, Room } from '../types'
+import type { Point, Room, Wall } from '../types'
 
 export function FloorCanvas() {
   const geometry = useFloorStore((s) => s.geometry)
   const addRoom = useFloorStore((s) => s.addRoom)
+  const addWall = useFloorStore((s) => s.addWall)
   const activeTool = useUIStore((s) => s.activeTool)
   const setActiveTool = useUIStore((s) => s.setActiveTool)
+  const setSelectedItem = useUIStore((s) => s.setSelectedItem)
   const zoom = useUIStore((s) => s.zoom)
   const setZoom = useUIStore((s) => s.setZoom)
   const pan = useUIStore((s) => s.pan)
@@ -26,10 +29,18 @@ export function FloorCanvas() {
   const snapToAngleEnabled = useUIStore((s) => s.snapToAngleEnabled)
 
   const [draftVertices, setDraftVertices] = useState<Point[]>([])
+  const [wallDraftStart, setWallDraftStart] = useState<Point | null>(null)
   const [previewPoint, setPreviewPoint] = useState<Point | null>(null)
   const stageRef = useRef<Konva.Stage>(null)
   const isPanningRef = useRef(false)
   const lastPointerRef = useRef<Point | null>(null)
+
+  // Clear in-progress draft when switching tools
+  useEffect(() => {
+    setDraftVertices([])
+    setWallDraftStart(null)
+    setPreviewPoint(null)
+  }, [activeTool])
 
   function commitRoom(vertices: Point[]) {
     if (vertices.length < MIN_ROOM_VERTICES) return
@@ -53,8 +64,7 @@ export function FloorCanvas() {
     setActiveTool('select')
 
     // Auto-fit the view so every corner of the room just drawn is guaranteed
-    // to be within the visible/interactive stage area — at the default zoom
-    // a modest room can easily be larger than the fixed-size stage.
+    // to be within the visible/interactive stage area.
     const updatedGeometry = { ...geometry, rooms: [...geometry.rooms, room] }
     const fit = computeFitZoomAndPan(updatedGeometry, STAGE_WIDTH, STAGE_HEIGHT)
     if (fit) {
@@ -63,18 +73,34 @@ export function FloorCanvas() {
     }
   }
 
+  function commitWall(start: Point, end: Point) {
+    const wall: Wall = {
+      id: crypto.randomUUID(),
+      start,
+      end,
+      thickness: 4.5,
+      wall_type: 'interior',
+      openings: [],
+    }
+    addWall(wall)
+    setWallDraftStart(null)
+    setPreviewPoint(null)
+    setActiveTool('select')
+  }
+
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setDraftVertices([])
+        setWallDraftStart(null)
         setPreviewPoint(null)
-      } else if (e.key === 'Enter') {
+      } else if (e.key === 'Enter' && activeTool === 'draw-room') {
         commitRoom(draftVertices)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [draftVertices, geometry.rooms.length])
+  }, [draftVertices, wallDraftStart, activeTool, geometry.rooms.length])
 
   function handleStageMouseDown(e: Konva.KonvaEventObject<MouseEvent>) {
     const stage = e.target.getStage()
@@ -102,35 +128,47 @@ export function FloorCanvas() {
       return
     }
 
-    if (activeTool !== 'draw-room') return
+    if (activeTool !== 'draw-room' && activeTool !== 'draw-wall') return
     const worldPt = screenToWorld(pointer, zoom, pan)
-    const lastVertex = draftVertices[draftVertices.length - 1] ?? null
-    const snapped = snapPoint(lastVertex, worldPt, {
-      gridEnabled: snapToGridEnabled,
-      angleEnabled: snapToAngleEnabled,
-      gridSizeInches,
-    })
-    setPreviewPoint(snapped)
+
+    if (activeTool === 'draw-room') {
+      const lastVertex = draftVertices[draftVertices.length - 1] ?? null
+      setPreviewPoint(snapPoint(lastVertex, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches }))
+    } else {
+      // Angle snap relative to draft start for wall drawing
+      setPreviewPoint(snapPoint(wallDraftStart, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches }))
+    }
   }
 
   function handleStageClick(e: Konva.KonvaEventObject<MouseEvent>) {
-    if (activeTool !== 'draw-room') return
     const stage = e.target.getStage()
     const pointer = stage?.getPointerPosition()
     if (!pointer) return
-    const worldPt = screenToWorld(pointer, zoom, pan)
-    const lastVertex = draftVertices[draftVertices.length - 1] ?? null
-    const snapped = snapPoint(lastVertex, worldPt, {
-      gridEnabled: snapToGridEnabled,
-      angleEnabled: snapToAngleEnabled,
-      gridSizeInches,
-    })
 
-    if (isCloseToFirstVertex(snapped, draftVertices)) {
-      commitRoom(draftVertices)
+    if (activeTool === 'select' && e.target === stage) {
+      setSelectedItem(null)
       return
     }
-    setDraftVertices([...draftVertices, snapped])
+
+    if (activeTool !== 'draw-room' && activeTool !== 'draw-wall') return
+    const worldPt = screenToWorld(pointer, zoom, pan)
+
+    if (activeTool === 'draw-room') {
+      const lastVertex = draftVertices[draftVertices.length - 1] ?? null
+      const snapped = snapPoint(lastVertex, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches })
+      if (isCloseToFirstVertex(snapped, draftVertices)) {
+        commitRoom(draftVertices)
+        return
+      }
+      setDraftVertices([...draftVertices, snapped])
+    } else {
+      const snapped = snapPoint(wallDraftStart, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches })
+      if (wallDraftStart === null) {
+        setWallDraftStart(snapped)
+      } else {
+        commitWall(wallDraftStart, snapped)
+      }
+    }
   }
 
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
@@ -149,10 +187,17 @@ export function FloorCanvas() {
     const s = worldToScreen(v, zoom, pan)
     return [s.x, s.y]
   })
-  const previewScreenPoints =
+  const roomPreviewPoints =
     previewPoint && draftVertices.length > 0
       ? [...draftScreenPoints, worldToScreen(previewPoint, zoom, pan).x, worldToScreen(previewPoint, zoom, pan).y]
       : draftScreenPoints
+
+  const wallPreviewScreen =
+    wallDraftStart && previewPoint
+      ? { s1: worldToScreen(wallDraftStart, zoom, pan), s2: worldToScreen(previewPoint, zoom, pan) }
+      : null
+
+  const cursor = activeTool === 'draw-room' || activeTool === 'draw-wall' ? 'crosshair' : 'default'
 
   return (
     <Stage
@@ -164,20 +209,46 @@ export function FloorCanvas() {
       onMouseMove={handleStageMouseMove}
       onClick={handleStageClick}
       onWheel={handleWheel}
-      style={{ background: '#ffffff', border: '1px solid #d1d5db', cursor: activeTool === 'draw-room' ? 'crosshair' : 'default' }}
+      style={{ background: '#ffffff', border: '1px solid #d1d5db', cursor }}
     >
       <Layer>
         <Grid width={STAGE_WIDTH} height={STAGE_HEIGHT} zoom={zoom} pan={pan} gridSizeInches={gridSizeInches} />
+
         {geometry.rooms.map((room) => (
           <RoomShape key={room.id} room={room} zoom={zoom} pan={pan} />
         ))}
-        {draftVertices.length > 0 && (
-          <Line points={previewScreenPoints} stroke="#2563eb" strokeWidth={2} dash={[6, 4]} />
+
+        {geometry.walls.map((wall) => (
+          <WallShape key={wall.id} wall={wall} zoom={zoom} pan={pan} />
+        ))}
+
+        {/* Draw-room preview */}
+        {activeTool === 'draw-room' && draftVertices.length > 0 && (
+          <Line points={roomPreviewPoints} stroke="#2563eb" strokeWidth={2} dash={[6, 4]} />
         )}
-        {draftVertices.map((v, i) => {
-          const s = worldToScreen(v, zoom, pan)
-          return <Circle key={`draft-${i}`} x={s.x} y={s.y} radius={4} fill="#2563eb" />
-        })}
+        {activeTool === 'draw-room' &&
+          draftVertices.map((v, i) => {
+            const s = worldToScreen(v, zoom, pan)
+            return <Circle key={`draft-${i}`} x={s.x} y={s.y} radius={4} fill="#2563eb" />
+          })}
+
+        {/* Draw-wall preview */}
+        {activeTool === 'draw-wall' && wallPreviewScreen && (
+          <Line
+            points={[wallPreviewScreen.s1.x, wallPreviewScreen.s1.y, wallPreviewScreen.s2.x, wallPreviewScreen.s2.y]}
+            stroke="#2563eb"
+            strokeWidth={2}
+            dash={[6, 4]}
+          />
+        )}
+        {activeTool === 'draw-wall' && wallDraftStart && (
+          <Circle
+            x={worldToScreen(wallDraftStart, zoom, pan).x}
+            y={worldToScreen(wallDraftStart, zoom, pan).y}
+            radius={4}
+            fill="#2563eb"
+          />
+        )}
       </Layer>
     </Stage>
   )

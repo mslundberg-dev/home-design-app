@@ -3,12 +3,16 @@ import type { UnitDisplay } from '../units/format'
 
 export type Tool = 'select' | 'draw-room' | 'draw-wall' | 'place-opening'
 
+export type SelectedItem =
+  | { type: 'room-edge'; roomId: string; edgeId: string }
+  | { type: 'wall'; wallId: string }
+
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
 
 interface UIState {
   activeTool: Tool
-  selectedElementId: string | null
+  selectedItem: SelectedItem | null
   zoom: number
   pan: { x: number; y: number }
   snapToGridEnabled: boolean
@@ -17,7 +21,7 @@ interface UIState {
   unitDisplay: UnitDisplay
 
   setActiveTool: (tool: Tool) => void
-  setSelectedElementId: (id: string | null) => void
+  setSelectedItem: (item: SelectedItem | null) => void
   setZoom: (zoom: number) => void
   setPan: (pan: { x: number; y: number }) => void
   toggleSnapToGrid: () => void
@@ -27,7 +31,7 @@ interface UIState {
 
 export const useUIStore = create<UIState>((set) => ({
   activeTool: 'select',
-  selectedElementId: null,
+  selectedItem: null,
   zoom: 1,
   pan: { x: 40, y: 40 },
   snapToGridEnabled: true,
@@ -35,8 +39,8 @@ export const useUIStore = create<UIState>((set) => ({
   gridSizeInches: 6,
   unitDisplay: 'imperial',
 
-  setActiveTool: (tool) => set({ activeTool: tool, selectedElementId: null }),
-  setSelectedElementId: (id) => set({ selectedElementId: id }),
+  setActiveTool: (tool) => set({ activeTool: tool, selectedItem: null }),
+  setSelectedItem: (item) => set({ selectedItem: item }),
   setZoom: (zoom) => set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) }),
   setPan: (pan) => set({ pan }),
   toggleSnapToGrid: () => set((s) => ({ snapToGridEnabled: !s.snapToGridEnabled })),

@@ -27,3 +27,26 @@ export function polygonCentroid(vertices: Point[]): Point {
   const sum = vertices.reduce((acc, v) => ({ x: acc.x + v.x, y: acc.y + v.y }), { x: 0, y: 0 })
   return { x: sum.x / n, y: sum.y / n }
 }
+
+/**
+ * Returns the solid (un-gapped) segments of a wall, accounting for openings.
+ * Each entry is [startInches, endInches] along the wall from its start vertex.
+ * Openings are clamped to [0, wallLength] and sorted before processing.
+ */
+export function computeSolidSegments(
+  wallLengthInches: number,
+  openings: { offset_along_edge: number; width: number }[],
+): [number, number][] {
+  const sorted = [...openings].sort((a, b) => a.offset_along_edge - b.offset_along_edge)
+  const segments: [number, number][] = []
+  let pos = 0
+  for (const o of sorted) {
+    const oStart = Math.max(0, o.offset_along_edge)
+    const oEnd = Math.min(wallLengthInches, o.offset_along_edge + o.width)
+    if (oEnd <= oStart) continue
+    if (oStart > pos) segments.push([pos, oStart])
+    pos = oEnd
+  }
+  if (pos < wallLengthInches) segments.push([pos, wallLengthInches])
+  return segments
+}

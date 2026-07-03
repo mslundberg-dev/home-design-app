@@ -62,3 +62,169 @@ body {
   text-align: center;
   color: #374151;
 }
+
+.floor-editor-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+/* Properties panel */
+.properties-panel {
+  width: 280px;
+  flex-shrink: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 14px;
+}
+
+.prop-header {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 10px;
+  color: #111827;
+}
+
+.prop-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.prop-label {
+  color: #6b7280;
+}
+
+.prop-value {
+  font-weight: 500;
+}
+
+.prop-section-title {
+  font-weight: 600;
+  margin: 14px 0 6px;
+  color: #374151;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+}
+
+.prop-empty {
+  color: #9ca3af;
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.prop-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.prop-actions button {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.prop-actions button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.prop-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Individual opening rows */
+.opening-row {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+  background: #f9fafb;
+}
+
+.opening-row-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.opening-type-badge {
+  font-weight: 600;
+  font-size: 13px;
+  color: #2563eb;
+}
+
+.opening-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #9ca3af;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.opening-remove:hover {
+  color: #ef4444;
+}
+
+.opening-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opening-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.opening-field span {
+  color: #6b7280;
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.opening-field input {
+  flex: 1;
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.opening-field input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.swing-toggle {
+  flex: 1;
+  padding: 3px 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+}
+
+.swing-toggle:hover {
+  background: #f3f4f6;
+}
+
+.opening-error {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+}

@@ -1,6 +1,7 @@
 import { FloorCanvas } from '../canvas/FloorCanvas'
 import { Toolbar } from '../components/Toolbar'
 import { UnitToggle } from '../components/UnitToggle'
+import { PropertiesPanel } from '../components/PropertiesPanel'
 
 export function FloorEditorPage() {
   return (
@@ -9,7 +10,10 @@ export function FloorEditorPage() {
         <Toolbar />
         <UnitToggle />
       </div>
-      <FloorCanvas />
+      <div className="floor-editor-body">
+        <FloorCanvas />
+        <PropertiesPanel />
+      </div>
     </div>
   )
 }

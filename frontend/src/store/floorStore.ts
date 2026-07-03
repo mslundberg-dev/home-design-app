@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import type { FloorGeometry, Room } from '../types'
+import type { FloorGeometry, Opening, Point, Room, Wall } from '../types'
+
+export type OpeningTarget =
+  | { roomId: string; edgeId: string }
+  | { wallId: string }
 
 const EMPTY_GEOMETRY: FloorGeometry = {
   schema_version: 1,
@@ -15,28 +19,34 @@ interface FloorState {
   dirty: boolean
 
   loadGeometry: (geometry: FloorGeometry) => void
+
+  // Rooms
   addRoom: (room: Room) => void
-  // Live variants apply the change without touching undo history — used for
-  // continuous updates (e.g. every mousemove frame of a drag), where pushing
-  // a new history entry per frame would flood `past` with hundreds of
-  // near-identical snapshots and make undo revert one imperceptible frame
-  // at a time instead of the whole gesture.
-  updateRoomVertexLive: (roomId: string, vertexIndex: number, point: { x: number; y: number }) => void
+  updateRoomVertexLive: (roomId: string, vertexIndex: number, point: Point) => void
   updateRoomEdgeVerticesLive: (
     roomId: string,
     startVertexIndex: number,
     endVertexIndex: number,
-    startPoint: { x: number; y: number },
-    endPoint: { x: number; y: number },
+    startPoint: Point,
+    endPoint: Point,
   ) => void
-  // Call beginCheckpoint() once when a continuous interaction starts (e.g.
-  // drag start) to capture the pre-interaction geometry, then
-  // commitCheckpoint(that snapshot) once when it ends, so the whole
-  // interaction becomes a single undo step.
-  beginCheckpoint: () => FloorGeometry
-  commitCheckpoint: (preInteractionGeometry: FloorGeometry) => void
   renameRoom: (roomId: string, name: string) => void
   removeRoom: (roomId: string) => void
+
+  // Freestanding walls
+  addWall: (wall: Wall) => void
+  removeWall: (wallId: string) => void
+  updateWallVertexLive: (wallId: string, which: 'start' | 'end', point: Point) => void
+  updateWallEndpointsLive: (wallId: string, start: Point, end: Point) => void
+
+  // Openings (on room edges or freestanding walls)
+  addOpening: (target: OpeningTarget, opening: Opening) => void
+  removeOpening: (target: OpeningTarget, openingId: string) => void
+  updateOpening: (target: OpeningTarget, opening: Opening) => void
+
+  // Undo / redo
+  beginCheckpoint: () => FloorGeometry
+  commitCheckpoint: (preInteractionGeometry: FloorGeometry) => void
   undo: () => void
   redo: () => void
   markSaved: () => void
@@ -59,6 +69,10 @@ export const useFloorStore = create<FloorState>((set, get) => {
     dirty: false,
 
     loadGeometry: (geometry) => set({ geometry, past: [], future: [], dirty: false }),
+
+    // -----------------------------------------------------------------------
+    // Rooms
+    // -----------------------------------------------------------------------
 
     addRoom: (room) => {
       const { geometry } = get()
@@ -92,13 +106,6 @@ export const useFloorStore = create<FloorState>((set, get) => {
       applyLive({ ...geometry, rooms })
     },
 
-    beginCheckpoint: () => get().geometry,
-
-    commitCheckpoint: (preInteractionGeometry) => {
-      const { past } = get()
-      set({ past: [...past, preInteractionGeometry], future: [], dirty: true })
-    },
-
     renameRoom: (roomId, name) => {
       const { geometry } = get()
       const rooms = geometry.rooms.map((r) => (r.id === roomId ? { ...r, name } : r))
@@ -108,6 +115,116 @@ export const useFloorStore = create<FloorState>((set, get) => {
     removeRoom: (roomId) => {
       const { geometry } = get()
       commit({ ...geometry, rooms: geometry.rooms.filter((r) => r.id !== roomId) })
+    },
+
+    // -----------------------------------------------------------------------
+    // Freestanding walls
+    // -----------------------------------------------------------------------
+
+    addWall: (wall) => {
+      const { geometry } = get()
+      commit({ ...geometry, walls: [...geometry.walls, wall] })
+    },
+
+    removeWall: (wallId) => {
+      const { geometry } = get()
+      commit({ ...geometry, walls: geometry.walls.filter((w) => w.id !== wallId) })
+    },
+
+    updateWallVertexLive: (wallId, which, point) => {
+      const { geometry } = get()
+      const walls = geometry.walls.map((w) =>
+        w.id === wallId ? { ...w, [which]: point } : w,
+      )
+      applyLive({ ...geometry, walls })
+    },
+
+    updateWallEndpointsLive: (wallId, start, end) => {
+      const { geometry } = get()
+      const walls = geometry.walls.map((w) =>
+        w.id === wallId ? { ...w, start, end } : w,
+      )
+      applyLive({ ...geometry, walls })
+    },
+
+    // -----------------------------------------------------------------------
+    // Openings
+    // -----------------------------------------------------------------------
+
+    addOpening: (target, opening) => {
+      const { geometry } = get()
+      if ('roomId' in target) {
+        const rooms = geometry.rooms.map((r) => {
+          if (r.id !== target.roomId) return r
+          const edges = r.edges.map((e) =>
+            e.id === target.edgeId ? { ...e, openings: [...e.openings, opening] } : e,
+          )
+          return { ...r, edges }
+        })
+        commit({ ...geometry, rooms })
+      } else {
+        const walls = geometry.walls.map((w) =>
+          w.id === target.wallId ? { ...w, openings: [...w.openings, opening] } : w,
+        )
+        commit({ ...geometry, walls })
+      }
+    },
+
+    removeOpening: (target, openingId) => {
+      const { geometry } = get()
+      if ('roomId' in target) {
+        const rooms = geometry.rooms.map((r) => {
+          if (r.id !== target.roomId) return r
+          const edges = r.edges.map((e) =>
+            e.id === target.edgeId
+              ? { ...e, openings: e.openings.filter((o) => o.id !== openingId) }
+              : e,
+          )
+          return { ...r, edges }
+        })
+        commit({ ...geometry, rooms })
+      } else {
+        const walls = geometry.walls.map((w) =>
+          w.id === target.wallId
+            ? { ...w, openings: w.openings.filter((o) => o.id !== openingId) }
+            : w,
+        )
+        commit({ ...geometry, walls })
+      }
+    },
+
+    updateOpening: (target, opening) => {
+      const { geometry } = get()
+      if ('roomId' in target) {
+        const rooms = geometry.rooms.map((r) => {
+          if (r.id !== target.roomId) return r
+          const edges = r.edges.map((e) =>
+            e.id === target.edgeId
+              ? { ...e, openings: e.openings.map((o) => (o.id === opening.id ? opening : o)) }
+              : e,
+          )
+          return { ...r, edges }
+        })
+        commit({ ...geometry, rooms })
+      } else {
+        const walls = geometry.walls.map((w) =>
+          w.id === target.wallId
+            ? { ...w, openings: w.openings.map((o) => (o.id === opening.id ? opening : o)) }
+            : w,
+        )
+        commit({ ...geometry, walls })
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // Undo / redo
+    // -----------------------------------------------------------------------
+
+    beginCheckpoint: () => get().geometry,
+
+    commitCheckpoint: (preInteractionGeometry) => {
+      const { past } = get()
+      set({ past: [...past, preInteractionGeometry], future: [], dirty: true })
     },
 
     undo: () => {

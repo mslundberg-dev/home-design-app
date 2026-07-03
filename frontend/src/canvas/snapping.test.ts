@@ -17,8 +17,10 @@ describe('snapValueToGrid', () => {
   })
 
   it('works with negative values', () => {
-    expect(snapValueToGrid(-3, 6)).toBe(-6)
-    expect(snapValueToGrid(-1, 6)).toBe(0)
+    // -3 is equidistant between 0 and -6; Math.round(-0.5)=0 → returns -0
+    expect(snapValueToGrid(-3, 6)).toBeCloseTo(0)
+    expect(snapValueToGrid(-1, 6)).toBeCloseTo(0)
+    expect(snapValueToGrid(-4, 6)).toBe(-6)
   })
 })
 

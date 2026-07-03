@@ -43,6 +43,9 @@ export function Toolbar() {
       <button className={activeTool === 'draw-room' ? 'active' : ''} onClick={() => setActiveTool('draw-room')}>
         Draw Room
       </button>
+      <button className={activeTool === 'draw-wall' ? 'active' : ''} onClick={() => setActiveTool('draw-wall')}>
+        Draw Wall
+      </button>
       <span className="toolbar-sep" />
       <label>
         <input type="checkbox" checked={snapToGridEnabled} onChange={toggleSnapToGrid} /> Snap to grid
