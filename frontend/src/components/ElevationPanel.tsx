@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useUIStore } from '../store/uiStore'
 import { useFloorStore } from '../store/floorStore'
 import { ElevationCanvas } from '../canvas/ElevationCanvas'
@@ -6,6 +6,9 @@ import { FURNITURE_CATALOG, DEFAULT_Z_ELEVATION } from '../canvas/furnitureCatal
 import type { Furniture } from '../types'
 
 const CABINET_TYPES = FURNITURE_CATALOG.filter((e) => e.category === 'Cabinets')
+const MIN_HEIGHT = 160
+const MAX_HEIGHT = 600
+const DEFAULT_HEIGHT = 260
 
 export function ElevationPanel() {
   const elevationRef = useUIStore((s) => s.elevationRef)
@@ -18,18 +21,25 @@ export function ElevationPanel() {
 
   const [selectedElevationItem, setSelectedElevationItem] = useState<Furniture | null>(null)
   const [zInput, setZInput] = useState('')
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT)
+  const dragStartY = useRef<number | null>(null)
+  const dragStartHeight = useRef<number>(DEFAULT_HEIGHT)
 
-  // Auto-switch elevation view when user selects a different wall (panel must already be open)
+  // Use a ref to avoid stale closure — always see the latest elevationRef
+  const elevationRefRef = useRef(elevationRef)
+  useEffect(() => { elevationRefRef.current = elevationRef }, [elevationRef])
+
+  // Auto-switch elevation canvas when user selects a different wall (panel must be open)
   useEffect(() => {
-    if (!elevationRef || !selectedItem) return
+    if (!elevationRefRef.current || !selectedItem) return
     if (selectedItem.type === 'room-edge') {
       setElevationRef(`room:${selectedItem.roomId}:${selectedItem.edgeId}`)
     } else if (selectedItem.type === 'wall') {
       setElevationRef(`wall:${selectedItem.wallId}`)
     }
-  }, [selectedItem])
+  }, [selectedItem, setElevationRef])
 
-  // Keep zInput in sync with the selected item (update from canvas drags)
+  // Keep zInput in sync with the selected item when geometry changes (e.g. after drag)
   useEffect(() => {
     if (!selectedElevationItem) { setZInput(''); return }
     const live = (geometry.furniture ?? []).find((f) => f.id === selectedElevationItem.id)
@@ -62,30 +72,53 @@ export function ElevationPanel() {
   }
 
   function handleAddCabinet(type: string, defaultWidth: number, defaultDepth: number) {
-    const newItem: Furniture = {
+    addFurniture({
       id: crypto.randomUUID(),
       type: type as Furniture['type'],
-      x: 12,
-      y: 12,
-      width: defaultWidth,
-      height: defaultDepth,
+      x: 12, y: 12,
+      width: defaultWidth, height: defaultDepth,
       rotation: 0,
       z_elevation: DEFAULT_Z_ELEVATION[type] ?? 0,
+    })
+  }
+
+  // Drag-to-resize: dragging the top handle up makes the panel taller
+  function onHandleMouseDown(e: React.MouseEvent) {
+    e.preventDefault()
+    dragStartY.current = e.clientY
+    dragStartHeight.current = panelHeight
+
+    function onMouseMove(ev: MouseEvent) {
+      if (dragStartY.current === null) return
+      const delta = dragStartY.current - ev.clientY   // drag up → positive → taller
+      const newH = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, dragStartHeight.current + delta))
+      setPanelHeight(newH)
     }
-    addFurniture(newItem)
+
+    function onMouseUp() {
+      dragStartY.current = null
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
   }
 
   if (!elevationRef) return null
 
   return (
-    <div className="elevation-panel">
+    <div className="elevation-panel" style={{ height: panelHeight }}>
+      {/* Drag handle */}
+      <div className="elevation-resize-handle" onMouseDown={onHandleMouseDown} title="Drag to resize" />
+
       <div className="elevation-panel-header">
         <span className="elevation-panel-title">Wall Elevation</span>
 
         {selectedElevationItem ? (
           <div className="elevation-z-editor">
             <span className="elevation-z-label">
-              {selectedElevationItem.type.replace(/-/g, ' ')} — Z elevation:
+              {selectedElevationItem.type.replace(/-/g, ' ')} — Z:
             </span>
             <input
               className="elevation-z-input"
@@ -98,6 +131,13 @@ export function ElevationPanel() {
               onKeyDown={(e) => { if (e.key === 'Enter') commitZInput() }}
             />
             <span className="elevation-z-unit">in</span>
+            <button
+              className="btn-cabinet"
+              style={{ marginLeft: 8 }}
+              onClick={() => handleSelectFurniture(null)}
+            >
+              Done
+            </button>
           </div>
         ) : (
           <div className="elevation-cabinet-palette">
