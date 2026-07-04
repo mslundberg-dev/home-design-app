@@ -264,6 +264,13 @@ body {
   cursor: not-allowed;
 }
 
+.floor-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .floor-editor-header {
   display: flex;
   align-items: center;
@@ -742,3 +749,78 @@ body {
 
 .opening-type-icon { font-size: 14px; min-width: 20px; text-align: center; }
 .opening-type-label { font-size: 12px; }
+
+/* ── Elevation panel ──────────────────────────────────────────────────────── */
+
+.elevation-panel {
+  border-top: 2px solid #d1d5db;
+  background: #f0f4f8;
+  display: flex;
+  flex-direction: column;
+  height: 260px;
+  flex-shrink: 0;
+}
+
+.elevation-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #e5eaf0;
+  border-bottom: 1px solid #d1d5db;
+  flex-shrink: 0;
+}
+
+.elevation-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-right: 8px;
+}
+
+.elevation-cabinet-palette {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.btn-cabinet {
+  padding: 3px 8px;
+  font-size: 12px;
+  border: 1px solid #9ca3af;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  color: #374151;
+}
+.btn-cabinet:hover { background: #dbeafe; border-color: #93c5fd; }
+
+.btn-close-elevation {
+  padding: 2px 8px;
+  font-size: 13px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #6b7280;
+  border-radius: 4px;
+}
+.btn-close-elevation:hover { background: #fee2e2; color: #dc2626; }
+
+.elevation-canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 8px;
+}
+
+.btn-view-elevation {
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+.btn-view-elevation:hover { background: #dbeafe; }

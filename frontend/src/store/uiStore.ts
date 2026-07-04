@@ -55,6 +55,11 @@ interface UIState {
   setPendingWindowSubtype: (subtype: WindowSubtype) => void
   setShowDoorPanel: (show: boolean) => void
   setShowWindowPanel: (show: boolean) => void
+
+  // Elevation view: which wall (by id) is being viewed face-on
+  // Format: 'room:{roomId}:{edgeId}' or 'wall:{wallId}'
+  elevationRef: string | null
+  setElevationRef: (ref: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -93,4 +98,7 @@ export const useUIStore = create<UIState>((set) => ({
   setPendingWindowSubtype: (subtype) => set({ pendingWindowSubtype: subtype }),
   setShowDoorPanel: (show) => set({ showDoorPanel: show }),
   setShowWindowPanel: (show) => set({ showWindowPanel: show }),
+
+  elevationRef: null,
+  setElevationRef: (ref) => set({ elevationRef: ref }),
 }))

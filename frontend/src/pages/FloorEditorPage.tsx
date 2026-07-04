@@ -8,6 +8,7 @@ import { PropertiesPanel } from '../components/PropertiesPanel'
 import { ExportButton } from '../components/ExportButton'
 import { FurniturePanel } from '../components/FurniturePanel'
 import { DoorPanel, WindowPanel } from '../components/DoorWindowPanel'
+import { ElevationPanel } from '../components/ElevationPanel'
 import { useFloorStore } from '../store/floorStore'
 
 export function FloorEditorPage() {
@@ -132,6 +133,7 @@ export function FloorEditorPage() {
           <FloorCanvas />
           <PropertiesPanel />
         </div>
+        <ElevationPanel />
       </div>
     </div>
   )

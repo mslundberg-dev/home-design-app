@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { FloorGeometry, Opening, Point, Room, Wall } from '../types'
+import type { FloorGeometry, Furniture, Opening, Point, Room, Wall } from '../types'
 
 export type OpeningTarget =
   | { roomId: string; edgeId: string }
@@ -10,6 +10,7 @@ const EMPTY_GEOMETRY: FloorGeometry = {
   north_angle_degrees: 0,
   rooms: [],
   walls: [],
+  furniture: [],
 }
 
 interface FloorState {
@@ -39,10 +40,25 @@ interface FloorState {
   updateWallVertexLive: (wallId: string, which: 'start' | 'end', point: Point) => void
   updateWallEndpointsLive: (wallId: string, start: Point, end: Point) => void
 
+  // Wall length editing (keeps start/v1 fixed, moves end/v2 along wall direction)
+  setRoomEdgeLength: (roomId: string, edgeId: string, lengthInches: number) => void
+  setWallLength: (wallId: string, lengthInches: number) => void
+
+  // Wall height editing
+  setRoomEdgeHeight: (roomId: string, edgeId: string, heightInches: number) => void
+  setWallHeight: (wallId: string, heightInches: number) => void
+
   // Openings (on room edges or freestanding walls)
   addOpening: (target: OpeningTarget, opening: Opening) => void
   removeOpening: (target: OpeningTarget, openingId: string) => void
   updateOpening: (target: OpeningTarget, opening: Opening) => void
+
+  // Furniture
+  addFurniture: (item: Furniture) => void
+  removeFurniture: (id: string) => void
+  updateFurniture: (item: Furniture) => void
+  moveFurnitureLive: (id: string, x: number, y: number) => void
+  updateFurnitureLive: (item: Furniture) => void
 
   // Undo / redo
   beginCheckpoint: () => FloorGeometry
@@ -148,6 +164,78 @@ export const useFloorStore = create<FloorState>((set, get) => {
     },
 
     // -----------------------------------------------------------------------
+    // Wall length editing
+    // -----------------------------------------------------------------------
+
+    setRoomEdgeLength: (roomId, edgeId, lengthInches) => {
+      const { geometry } = get()
+      const room = geometry.rooms.find((r) => r.id === roomId)
+      if (!room) return
+      const edge = room.edges.find((e) => e.id === edgeId)
+      if (!edge) return
+      const v1 = room.vertices[edge.start_vertex_index]
+      const v2 = room.vertices[edge.end_vertex_index]
+      const dx = v2.x - v1.x
+      const dy = v2.y - v1.y
+      const len = Math.hypot(dx, dy)
+      if (len < 0.001) return
+      const ux = dx / len
+      const uy = dy / len
+      const newV2 = { x: v1.x + ux * lengthInches, y: v1.y + uy * lengthInches }
+      const rooms = geometry.rooms.map((r) =>
+        r.id !== roomId
+          ? r
+          : {
+              ...r,
+              vertices: r.vertices.map((v, i) =>
+                i === edge.end_vertex_index ? newV2 : v,
+              ),
+            },
+      )
+      commit({ ...geometry, rooms })
+    },
+
+    setWallLength: (wallId, lengthInches) => {
+      const { geometry } = get()
+      const wall = geometry.walls.find((w) => w.id === wallId)
+      if (!wall) return
+      const dx = wall.end.x - wall.start.x
+      const dy = wall.end.y - wall.start.y
+      const len = Math.hypot(dx, dy)
+      if (len < 0.001) return
+      const ux = dx / len
+      const uy = dy / len
+      const newEnd = { x: wall.start.x + ux * lengthInches, y: wall.start.y + uy * lengthInches }
+      const walls = geometry.walls.map((w) =>
+        w.id === wallId ? { ...w, end: newEnd } : w,
+      )
+      commit({ ...geometry, walls })
+    },
+
+    setRoomEdgeHeight: (roomId, edgeId, heightInches) => {
+      const { geometry } = get()
+      const rooms = geometry.rooms.map((r) =>
+        r.id !== roomId
+          ? r
+          : {
+              ...r,
+              edges: r.edges.map((e) =>
+                e.id === edgeId ? { ...e, height_inches: heightInches } : e,
+              ),
+            },
+      )
+      commit({ ...geometry, rooms })
+    },
+
+    setWallHeight: (wallId, heightInches) => {
+      const { geometry } = get()
+      const walls = geometry.walls.map((w) =>
+        w.id === wallId ? { ...w, height_inches: heightInches } : w,
+      )
+      commit({ ...geometry, walls })
+    },
+
+    // -----------------------------------------------------------------------
     // Openings
     // -----------------------------------------------------------------------
 
@@ -214,6 +302,35 @@ export const useFloorStore = create<FloorState>((set, get) => {
         )
         commit({ ...geometry, walls })
       }
+    },
+
+    // -----------------------------------------------------------------------
+    // Furniture
+    // -----------------------------------------------------------------------
+
+    addFurniture: (item) => {
+      const { geometry } = get()
+      commit({ ...geometry, furniture: [...(geometry.furniture ?? []), item] })
+    },
+
+    removeFurniture: (id) => {
+      const { geometry } = get()
+      commit({ ...geometry, furniture: (geometry.furniture ?? []).filter((f) => f.id !== id) })
+    },
+
+    updateFurniture: (item) => {
+      const { geometry } = get()
+      commit({ ...geometry, furniture: (geometry.furniture ?? []).map((f) => f.id === item.id ? item : f) })
+    },
+
+    moveFurnitureLive: (id, x, y) => {
+      const { geometry } = get()
+      applyLive({ ...geometry, furniture: (geometry.furniture ?? []).map((f) => f.id === id ? { ...f, x, y } : f) })
+    },
+
+    updateFurnitureLive: (item) => {
+      const { geometry } = get()
+      applyLive({ ...geometry, furniture: (geometry.furniture ?? []).map((f) => f.id === item.id ? item : f) })
     },
 
     // -----------------------------------------------------------------------

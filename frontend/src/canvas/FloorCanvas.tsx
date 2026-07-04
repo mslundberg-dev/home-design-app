@@ -14,7 +14,7 @@ import { STAGE_WIDTH, STAGE_HEIGHT, computeFitZoomAndPan } from './fitView'
 import { MIN_ZOOM, MAX_ZOOM } from '../store/uiStore'
 import type { Opening, Point, Room, Wall } from '../types'
 import { findNearestWallHit } from './wallDetect'
-import { FURNITURE_CATALOG } from './furnitureCatalog'
+import { FURNITURE_CATALOG, DEFAULT_Z_ELEVATION } from './furnitureCatalog'
 
 // Snap-to-wall threshold in screen pixels
 const WALL_SNAP_PX = 28
@@ -149,6 +149,7 @@ export function FloorCanvas() {
       width: entry.defaultWidth,
       height: entry.defaultHeight,
       rotation: 0,
+      z_elevation: DEFAULT_Z_ELEVATION[pendingFurnitureType] ?? 0,
     }
     addFurniture(newItem)
     setSelectedItem({ type: 'furniture', furnitureId: newItem.id })

@@ -25,6 +25,7 @@ export function PropertiesPanel() {
   const removeFurniture = useFloorStore((s) => s.removeFurniture)
   const updateFurniture = useFloorStore((s) => s.updateFurniture)
   const unitDisplay = useUIStore((s) => s.unitDisplay)
+  const setElevationRef = useUIStore((s) => s.setElevationRef)
 
   if (!selectedItem) return null
 
@@ -192,6 +193,20 @@ export function PropertiesPanel() {
           title={WINDOW_WIDTHS[0] > wallLengthInches ? 'Wall too short for a window' : undefined}
         >
           + Window
+        </button>
+      </div>
+
+      <div className="prop-actions">
+        <button
+          className="btn-view-elevation"
+          onClick={() => {
+            const ref = 'roomId' in target
+              ? `room:${target.roomId}:${target.edgeId}`
+              : `wall:${target.wallId}`
+            setElevationRef(ref)
+          }}
+        >
+          View Elevation ↕
         </button>
       </div>
     </div>

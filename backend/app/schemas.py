@@ -63,6 +63,7 @@ class Furniture(BaseModel):
     width: float
     height: float
     rotation: float = 0.0
+    z_elevation: float = 0.0  # inches off the floor
 
 
 class FloorGeometry(BaseModel):

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { FloorGeometry, Furniture, Opening } from '../types'
+import { FURNITURE_HEIGHTS, FURNITURE_HEIGHT_DEFAULT } from './furnitureHeights'
 
 // Conversion: world inches → three.js units (1 unit = 1 foot for readability)
 const IN_TO_UNIT = 1 / 12
@@ -284,50 +285,26 @@ function addHorizontalCap(
   group.add(new THREE.Mesh(geo, mat))
 }
 
-// ── Furniture heights and colors ────────────────────────────────────────────
-
-const FURNITURE_3D: Record<string, { heightIn: number; color: number }> = {
-  'sofa':          { heightIn: 30, color: 0x8b7355 },
-  'armchair':      { heightIn: 30, color: 0x9b8060 },
-  'dining-chair':  { heightIn: 32, color: 0xa08060 },
-  'dining-table':  { heightIn: 30, color: 0xc8a878 },
-  'coffee-table':  { heightIn: 16, color: 0xb89060 },
-  'desk':          { heightIn: 30, color: 0xb0906a },
-  'side-table':    { heightIn: 24, color: 0xc0a070 },
-  'twin-bed':      { heightIn: 20, color: 0x9090c0 },
-  'full-bed':      { heightIn: 20, color: 0x8888b8 },
-  'queen-bed':     { heightIn: 24, color: 0x8080b0 },
-  'king-bed':      { heightIn: 24, color: 0x7070a8 },
-  'toilet':        { heightIn: 28, color: 0xe8e8e8 },
-  'bathtub':       { heightIn: 20, color: 0xd8d8f0 },
-  'shower':        { heightIn: 84, color: 0xd0e8f0 },
-  'bathroom-sink': { heightIn: 32, color: 0xe0e0e8 },
-  'refrigerator':  { heightIn: 68, color: 0xd0d0d8 },
-  'range':         { heightIn: 36, color: 0x888888 },
-  'kitchen-sink':  { heightIn: 36, color: 0xc0c8cc },
-}
-const FURNITURE_DEFAULT_3D = { heightIn: 30, color: 0xaaaaaa }
+// ── Furniture mesh builder ───────────────────────────────────────────────────
 
 function buildFurnitureMesh(group: THREE.Group, item: Furniture) {
-  const def = FURNITURE_3D[item.type] ?? FURNITURE_DEFAULT_3D
+  const def = FURNITURE_HEIGHTS[item.type] ?? FURNITURE_HEIGHT_DEFAULT
   const w = item.width  * IN_TO_UNIT
   const d = item.height * IN_TO_UNIT  // "height" in 2D = depth in plan view
   const h = def.heightIn * IN_TO_UNIT
+  const zBase = (item.z_elevation ?? 0) * IN_TO_UNIT
 
   const geo = new THREE.BoxGeometry(w, h, d)
   const mat = new THREE.MeshLambertMaterial({ color: def.color })
   const mesh = new THREE.Mesh(geo, mat)
 
-  // Position: item.x/y is the center in world inches; y=0 is floor, box sits on it
   mesh.position.set(
     item.x  * IN_TO_UNIT,
-    h / 2,                   // sit on the floor
+    zBase + h / 2,           // sit on its elevation base
     -item.y * IN_TO_UNIT,    // flip Y→Z to match wall coordinate system
   )
 
-  // Rotation is stored in degrees, three.js uses radians, positive = CW in plan = CW around Y
   mesh.rotation.y = -item.rotation * (Math.PI / 180)
-
   mesh.castShadow = true
   mesh.receiveShadow = true
   group.add(mesh)

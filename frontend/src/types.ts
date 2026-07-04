@@ -54,15 +54,17 @@ export type FurnitureType =
   | 'twin-bed' | 'full-bed' | 'queen-bed' | 'king-bed'
   | 'toilet' | 'bathtub' | 'shower' | 'bathroom-sink'
   | 'refrigerator' | 'range' | 'kitchen-sink'
+  | 'base-cabinet' | 'upper-cabinet' | 'pantry-cabinet' | 'dishwasher'
 
 export interface Furniture {
   id: string
   type: FurnitureType
-  x: number        // center x, world inches
-  y: number        // center y, world inches
-  width: number    // inches
-  height: number   // inches
-  rotation: number // degrees
+  x: number          // center x, world inches
+  y: number          // center y, world inches
+  width: number      // inches
+  height: number     // inches (depth in plan view)
+  rotation: number   // degrees
+  z_elevation: number // inches off the floor (0 = on floor)
 }
 
 export interface FloorGeometry {
