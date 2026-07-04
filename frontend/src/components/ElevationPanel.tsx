@@ -25,19 +25,17 @@ export function ElevationPanel() {
   const dragStartY = useRef<number | null>(null)
   const dragStartHeight = useRef<number>(DEFAULT_HEIGHT)
 
-  // Use a ref to avoid stale closure — always see the latest elevationRef
-  const elevationRefRef = useRef(elevationRef)
-  useEffect(() => { elevationRefRef.current = elevationRef }, [elevationRef])
-
-  // Auto-switch elevation canvas when user selects a different wall (panel must be open)
+  // Auto-switch elevation canvas when user selects a different wall (panel must already be open)
+  // elevationRef is in deps so we always see its current value — setting it to the same
+  // string value is a no-op in Zustand, so this won't loop.
   useEffect(() => {
-    if (!elevationRefRef.current || !selectedItem) return
+    if (!elevationRef || !selectedItem) return
     if (selectedItem.type === 'room-edge') {
       setElevationRef(`room:${selectedItem.roomId}:${selectedItem.edgeId}`)
     } else if (selectedItem.type === 'wall') {
       setElevationRef(`wall:${selectedItem.wallId}`)
     }
-  }, [selectedItem, setElevationRef])
+  }, [selectedItem, elevationRef, setElevationRef])
 
   // Keep zInput in sync with the selected item when geometry changes (e.g. after drag)
   useEffect(() => {
