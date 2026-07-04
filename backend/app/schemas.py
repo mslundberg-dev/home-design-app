@@ -15,7 +15,10 @@ class Point(BaseModel):
 class Opening(BaseModel):
     id: str
     type: Literal["door", "window"]
-    subtype: str | None = None
+    subtype: Literal[
+        "single", "double", "sliding", "pocket", "bifold", "garage",
+        "single-hung", "casement", "fixed", "awning",
+    ] | None = None
     offset_along_edge: float
     width: float
     height: float
