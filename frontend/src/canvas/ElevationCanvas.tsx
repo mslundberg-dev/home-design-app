@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import Konva from 'konva'
 import type { Furniture, Opening, FloorGeometry } from '../types'
+import type { OpeningTarget } from '../store/floorStore'
 import { FURNITURE_HEIGHTS, FURNITURE_HEIGHT_DEFAULT } from './furnitureHeights'
 
 const PX_PER_IN = 3
@@ -17,6 +18,7 @@ interface WallInfo {
   ux: number;  uy: number
   items: Furniture[]
   openings: Opening[]
+  target: OpeningTarget
 }
 
 function getWallInfo(elevationRef: string, geometry: FloorGeometry): WallInfo | null {
@@ -37,6 +39,7 @@ function getWallInfo(elevationRef: string, geometry: FloorGeometry): WallInfo | 
       uy: (v2.y - v1.y) / len,
       items: geometry.furniture ?? [],
       openings: edge.openings,
+      target: { roomId, edgeId },
     }
   } else if (elevationRef.startsWith('wall:')) {
     const wall = geometry.walls.find((w) => w.id === elevationRef.slice(5))
@@ -50,6 +53,7 @@ function getWallInfo(elevationRef: string, geometry: FloorGeometry): WallInfo | 
       uy: (wall.end.y - wall.start.y) / len,
       items: geometry.furniture ?? [],
       openings: wall.openings,
+      target: { wallId: wall.id },
     }
   }
   return null
@@ -62,9 +66,13 @@ function projectOnWall(item: Furniture, info: WallInfo): number {
 
 /** Perpendicular distance from item center to wall line */
 function perpDistance(item: Furniture, info: WallInfo): number {
-  // Normal to wall direction
   const nx = -info.uy, ny = info.ux
   return Math.abs((item.x - info.p1x) * nx + (item.y - info.p1y) * ny)
+}
+
+export interface SelectedOpening {
+  opening: Opening
+  target: OpeningTarget
 }
 
 interface ElevationCanvasProps {
@@ -73,6 +81,9 @@ interface ElevationCanvasProps {
   onUpdateFurniture: (item: Furniture) => void
   onSelectFurniture: (item: Furniture | null) => void
   selectedFurnitureId: string | null
+  onUpdateOpening: (target: OpeningTarget, opening: Opening) => void
+  onSelectOpening: (sel: SelectedOpening | null) => void
+  selectedOpeningId: string | null
 }
 
 export function ElevationCanvas({
@@ -81,6 +92,9 @@ export function ElevationCanvas({
   onUpdateFurniture,
   onSelectFurniture,
   selectedFurnitureId,
+  onUpdateOpening,
+  onSelectOpening,
+  selectedOpeningId,
 }: ElevationCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
@@ -105,7 +119,12 @@ export function ElevationCanvas({
     const layer = new Konva.Layer()
     stage.add(layer)
 
-    stage.on('click', (e) => { if (e.target === stage) onSelectFurniture(null) })
+    stage.on('click', (e) => {
+      if (e.target === stage) {
+        onSelectFurniture(null)
+        onSelectOpening(null)
+      }
+    })
 
     // Floor line
     layer.add(new Konva.Line({
@@ -139,29 +158,81 @@ export function ElevationCanvas({
 
     // ── Openings (doors and windows on this wall face) ────────────────────────
     for (const op of info.openings) {
+      const isSelected = op.id === selectedOpeningId
       const ox = PADDING + op.offset_along_edge * PX_PER_IN
       const ow = op.width * PX_PER_IN
+      const minOffsetPx = PADDING
+      const maxOffsetPx = PADDING + (info.lengthIn - op.width) * PX_PER_IN
 
       if (op.type === 'door') {
         const oh = op.height * PX_PER_IN
         const oy = canvasH - PADDING - oh
-        layer.add(new Konva.Rect({
+
+        const rect = new Konva.Rect({
           x: ox, y: oy, width: ow, height: oh,
-          fill: '#dbeafe', stroke: '#3b82f6', strokeWidth: 1, listening: false,
-        }))
+          fill: '#dbeafe',
+          stroke: isSelected ? '#1d4ed8' : '#3b82f6',
+          strokeWidth: isSelected ? 2 : 1,
+          draggable: true,
+          dragBoundFunc(pos) {
+            // Constrain horizontal only, clamp within wall
+            const clampedX = Math.max(minOffsetPx, Math.min(maxOffsetPx, pos.x))
+            return { x: clampedX, y: oy }
+          },
+        })
+
+        rect.on('click', (e) => {
+          e.cancelBubble = true
+          onSelectFurniture(null)
+          onSelectOpening({ opening: op, target: info.target })
+        })
+
+        rect.on('dragend', () => {
+          const newOffset = (rect.x() - PADDING) / PX_PER_IN
+          onUpdateOpening(info.target, {
+            ...op,
+            offset_along_edge: Math.max(0, Math.min(info.lengthIn - op.width, newOffset)),
+          })
+        })
+
+        layer.add(rect)
         layer.add(new Konva.Text({
           x: ox + 2, y: oy + 2,
           text: `Door\n${op.width}"`,
-          fontSize: 8, fill: '#1d4ed8', listening: false,
+          fontSize: 8, fill: isSelected ? '#1e3a8a' : '#1d4ed8', listening: false,
         }))
       } else {
         const sillPx = WINDOW_SILL_IN * PX_PER_IN
         const oh = op.height * PX_PER_IN
         const oy = canvasH - PADDING - sillPx - oh
-        layer.add(new Konva.Rect({
+
+        const rect = new Konva.Rect({
           x: ox, y: oy, width: ow, height: oh,
-          fill: '#e0f2fe', stroke: '#0284c7', strokeWidth: 1, listening: false,
-        }))
+          fill: '#e0f2fe',
+          stroke: isSelected ? '#0369a1' : '#0284c7',
+          strokeWidth: isSelected ? 2 : 1,
+          draggable: true,
+          dragBoundFunc(pos) {
+            const clampedX = Math.max(minOffsetPx, Math.min(maxOffsetPx, pos.x))
+            return { x: clampedX, y: oy }
+          },
+        })
+
+        rect.on('click', (e) => {
+          e.cancelBubble = true
+          onSelectFurniture(null)
+          onSelectOpening({ opening: op, target: info.target })
+        })
+
+        rect.on('dragend', () => {
+          const newOffset = (rect.x() - PADDING) / PX_PER_IN
+          onUpdateOpening(info.target, {
+            ...op,
+            offset_along_edge: Math.max(0, Math.min(info.lengthIn - op.width, newOffset)),
+          })
+        })
+
+        layer.add(rect)
         // Sill line
         layer.add(new Konva.Line({
           points: [ox, canvasH - PADDING - sillPx, ox + ow, canvasH - PADDING - sillPx],
@@ -170,18 +241,16 @@ export function ElevationCanvas({
         layer.add(new Konva.Text({
           x: ox + 2, y: oy + 2,
           text: `Win\n${op.width}"`,
-          fontSize: 8, fill: '#0369a1', listening: false,
+          fontSize: 8, fill: isSelected ? '#075985' : '#0369a1', listening: false,
         }))
       }
     }
 
     // ── Furniture items projected onto this wall ───────────────────────────────
     for (const item of info.items) {
-      // Only show items within DEPTH_THRESHOLD_IN of the wall
       if (perpDistance(item, info) > DEPTH_THRESHOLD_IN) continue
 
       const offsetIn = projectOnWall(item, info)
-      // Only show items whose footprint overlaps the wall span
       if (offsetIn + item.width < 0 || offsetIn > info.lengthIn) continue
 
       const def = FURNITURE_HEIGHTS[item.type] ?? FURNITURE_HEIGHT_DEFAULT
@@ -189,7 +258,6 @@ export function ElevationCanvas({
       const zBase = item.z_elevation ?? 0
       const isSelected = item.id === selectedFurnitureId
 
-      // Center the item; item.x is the center, so start = offsetIn - halfWidth
       const halfW = item.width / 2
       const px = PADDING + (offsetIn - halfW) * PX_PER_IN
       const pw = item.width * PX_PER_IN
@@ -207,11 +275,13 @@ export function ElevationCanvas({
         draggable: true,
       })
 
-      rect.on('click', (e) => { e.cancelBubble = true; onSelectFurniture(item) })
+      rect.on('click', (e) => {
+        e.cancelBubble = true
+        onSelectOpening(null)
+        onSelectFurniture(item)
+      })
 
       rect.on('dragend', () => {
-        // Drag only adjusts z_elevation (vertical). Horizontal position
-        // should be edited via the floor plan for accuracy.
         const newPy = rect.y()
         const newZBase = (canvasH - PADDING - newPy) / PX_PER_IN - itemH
         onUpdateFurniture({
@@ -236,7 +306,8 @@ export function ElevationCanvas({
     }
 
     layer.draw()
-  }, [elevationRef, geometry, onUpdateFurniture, onSelectFurniture, selectedFurnitureId])
+  }, [elevationRef, geometry, onUpdateFurniture, onSelectFurniture, selectedFurnitureId,
+      onUpdateOpening, onSelectOpening, selectedOpeningId])
 
   useEffect(() => {
     rebuild()

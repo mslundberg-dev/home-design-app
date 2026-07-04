@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useUIStore } from '../store/uiStore'
 import { useFloorStore } from '../store/floorStore'
 import { ElevationCanvas } from '../canvas/ElevationCanvas'
+import type { SelectedOpening } from '../canvas/ElevationCanvas'
 import { FURNITURE_CATALOG, DEFAULT_Z_ELEVATION } from '../canvas/furnitureCatalog'
 import type { Furniture } from '../types'
 
@@ -18,16 +19,18 @@ export function ElevationPanel() {
   const addFurniture = useFloorStore((s) => s.addFurniture)
   const updateFurnitureLive = useFloorStore((s) => s.updateFurnitureLive)
   const updateFurniture = useFloorStore((s) => s.updateFurniture)
+  const updateOpening = useFloorStore((s) => s.updateOpening)
 
   const [selectedElevationItem, setSelectedElevationItem] = useState<Furniture | null>(null)
+  const [selectedOpening, setSelectedOpening] = useState<SelectedOpening | null>(null)
   const [zInput, setZInput] = useState('')
+  const [openingWidthInput, setOpeningWidthInput] = useState('')
+  const [openingOffsetInput, setOpeningOffsetInput] = useState('')
   const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT)
   const dragStartY = useRef<number | null>(null)
   const dragStartHeight = useRef<number>(DEFAULT_HEIGHT)
 
   // Auto-switch elevation canvas when user selects a different wall (panel must already be open)
-  // elevationRef is in deps so we always see its current value — setting it to the same
-  // string value is a no-op in Zustand, so this won't loop.
   useEffect(() => {
     if (!elevationRef || !selectedItem) return
     if (selectedItem.type === 'room-edge') {
@@ -37,7 +40,7 @@ export function ElevationPanel() {
     }
   }, [selectedItem, elevationRef, setElevationRef])
 
-  // Keep zInput in sync with the selected item when geometry changes (e.g. after drag)
+  // Keep zInput in sync with the selected furniture item when geometry changes
   useEffect(() => {
     if (!selectedElevationItem) { setZInput(''); return }
     const live = (geometry.furniture ?? []).find((f) => f.id === selectedElevationItem.id)
@@ -47,9 +50,41 @@ export function ElevationPanel() {
     }
   }, [geometry.furniture, selectedElevationItem?.id])
 
+  // Keep opening inputs in sync when geometry changes (e.g. after drag)
+  useEffect(() => {
+    if (!selectedOpening) { setOpeningWidthInput(''); setOpeningOffsetInput(''); return }
+    // Find the live opening from geometry
+    const { target, opening } = selectedOpening
+    let liveOpening = null
+    if ('roomId' in target) {
+      const room = geometry.rooms.find((r) => r.id === target.roomId)
+      const edge = room?.edges.find((e) => e.id === target.edgeId)
+      liveOpening = edge?.openings.find((o) => o.id === opening.id) ?? null
+    } else {
+      const wall = geometry.walls.find((w) => w.id === target.wallId)
+      liveOpening = wall?.openings.find((o) => o.id === opening.id) ?? null
+    }
+    if (liveOpening) {
+      setSelectedOpening({ ...selectedOpening, opening: liveOpening })
+      setOpeningWidthInput(String(liveOpening.width))
+      setOpeningOffsetInput(String(Math.round(liveOpening.offset_along_edge * 10) / 10))
+    }
+  }, [geometry.rooms, geometry.walls, selectedOpening?.opening.id])
+
   const handleSelectFurniture = useCallback((item: Furniture | null) => {
     setSelectedElevationItem(item)
+    setSelectedOpening(null)
     setZInput(item ? String(item.z_elevation ?? 0) : '')
+  }, [])
+
+  const handleSelectOpening = useCallback((sel: SelectedOpening | null) => {
+    setSelectedOpening(sel)
+    setSelectedElevationItem(null)
+    setZInput('')
+    if (sel) {
+      setOpeningWidthInput(String(sel.opening.width))
+      setOpeningOffsetInput(String(Math.round(sel.opening.offset_along_edge * 10) / 10))
+    }
   }, [])
 
   const handleUpdateFurniture = useCallback((item: Furniture) => {
@@ -59,6 +94,10 @@ export function ElevationPanel() {
     setZInput(String(item.z_elevation ?? 0))
   }, [updateFurnitureLive, updateFurniture])
 
+  const handleUpdateOpening = useCallback((target: Parameters<typeof updateOpening>[0], opening: Parameters<typeof updateOpening>[1]) => {
+    updateOpening(target, opening)
+  }, [updateOpening])
+
   function commitZInput() {
     if (!selectedElevationItem) return
     const parsed = parseFloat(zInput)
@@ -67,6 +106,20 @@ export function ElevationPanel() {
     updateFurnitureLive(updated)
     updateFurniture(updated)
     setSelectedElevationItem(updated)
+  }
+
+  function commitOpeningWidth() {
+    if (!selectedOpening) return
+    const parsed = parseFloat(openingWidthInput)
+    if (isNaN(parsed) || parsed <= 0) return
+    updateOpening(selectedOpening.target, { ...selectedOpening.opening, width: parsed })
+  }
+
+  function commitOpeningOffset() {
+    if (!selectedOpening) return
+    const parsed = parseFloat(openingOffsetInput)
+    if (isNaN(parsed) || parsed < 0) return
+    updateOpening(selectedOpening.target, { ...selectedOpening.opening, offset_along_edge: parsed })
   }
 
   function handleAddCabinet(type: string, defaultWidth: number, defaultDepth: number) {
@@ -88,7 +141,7 @@ export function ElevationPanel() {
 
     function onMouseMove(ev: MouseEvent) {
       if (dragStartY.current === null) return
-      const delta = dragStartY.current - ev.clientY   // drag up → positive → taller
+      const delta = dragStartY.current - ev.clientY
       const newH = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, dragStartHeight.current + delta))
       setPanelHeight(newH)
     }
@@ -105,6 +158,12 @@ export function ElevationPanel() {
 
   if (!elevationRef) return null
 
+  const activeSelection = selectedElevationItem
+    ? 'furniture'
+    : selectedOpening
+      ? 'opening'
+      : null
+
   return (
     <div className="elevation-panel" style={{ height: panelHeight }}>
       {/* Drag handle */}
@@ -113,7 +172,7 @@ export function ElevationPanel() {
       <div className="elevation-panel-header">
         <span className="elevation-panel-title">Wall Elevation</span>
 
-        {selectedElevationItem ? (
+        {activeSelection === 'furniture' && selectedElevationItem && (
           <div className="elevation-z-editor">
             <span className="elevation-z-label">
               {selectedElevationItem.type.replace(/-/g, ' ')} — Z:
@@ -129,15 +188,43 @@ export function ElevationPanel() {
               onKeyDown={(e) => { if (e.key === 'Enter') commitZInput() }}
             />
             <span className="elevation-z-unit">in</span>
-            <button
-              className="btn-cabinet"
-              style={{ marginLeft: 8 }}
-              onClick={() => handleSelectFurniture(null)}
-            >
-              Done
-            </button>
+            <button className="btn-cabinet" style={{ marginLeft: 8 }} onClick={() => handleSelectFurniture(null)}>Done</button>
           </div>
-        ) : (
+        )}
+
+        {activeSelection === 'opening' && selectedOpening && (
+          <div className="elevation-z-editor">
+            <span className="elevation-z-label">
+              {selectedOpening.opening.type === 'door' ? 'Door' : 'Window'} — W:
+            </span>
+            <input
+              className="elevation-z-input"
+              type="number"
+              min={1}
+              step={1}
+              value={openingWidthInput}
+              onChange={(e) => setOpeningWidthInput(e.target.value)}
+              onBlur={commitOpeningWidth}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitOpeningWidth() }}
+            />
+            <span className="elevation-z-unit">in</span>
+            <span className="elevation-z-label" style={{ marginLeft: 8 }}>Offset:</span>
+            <input
+              className="elevation-z-input"
+              type="number"
+              min={0}
+              step={1}
+              value={openingOffsetInput}
+              onChange={(e) => setOpeningOffsetInput(e.target.value)}
+              onBlur={commitOpeningOffset}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitOpeningOffset() }}
+            />
+            <span className="elevation-z-unit">in</span>
+            <button className="btn-cabinet" style={{ marginLeft: 8 }} onClick={() => handleSelectOpening(null)}>Done</button>
+          </div>
+        )}
+
+        {activeSelection === null && (
           <div className="elevation-cabinet-palette">
             {CABINET_TYPES.map((entry) => (
               <button
@@ -154,7 +241,7 @@ export function ElevationPanel() {
 
         <button
           className="btn-close-elevation"
-          onClick={() => { setElevationRef(null); setSelectedElevationItem(null) }}
+          onClick={() => { setElevationRef(null); setSelectedElevationItem(null); setSelectedOpening(null) }}
           title="Close elevation view"
         >
           ✕
@@ -168,6 +255,9 @@ export function ElevationPanel() {
           onUpdateFurniture={handleUpdateFurniture}
           onSelectFurniture={handleSelectFurniture}
           selectedFurnitureId={selectedElevationItem?.id ?? null}
+          onUpdateOpening={handleUpdateOpening}
+          onSelectOpening={handleSelectOpening}
+          selectedOpeningId={selectedOpening?.opening.id ?? null}
         />
       </div>
     </div>
