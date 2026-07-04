@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate, useParams, useBeforeUnload, Link } from 'react-router-dom'
 import { getFloor, saveFloorGeometry } from '../api'
 import { FloorCanvas } from '../canvas/FloorCanvas'
@@ -27,6 +27,7 @@ export function FloorEditorPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Load floor geometry on mount
   useEffect(() => {
@@ -42,6 +43,26 @@ export function FloorEditorPage() {
       .catch((e) => setLoadError(e.message))
       .finally(() => setLoading(false))
   }, [id])
+
+  // Autosave: 3 seconds after the last geometry change
+  useEffect(() => {
+    if (!dirty || loading) return
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+    autosaveTimer.current = setTimeout(async () => {
+      setSaving(true)
+      setSaveError(null)
+      try {
+        const updated = await saveFloorGeometry(id, geometry)
+        markSaved()
+        setLastSaved(new Date(updated.updated_at))
+      } catch {
+        // silent — manual Save button still available
+      } finally {
+        setSaving(false)
+      }
+    }, 3000)
+    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current) }
+  }, [geometry, dirty, loading])
 
   // Warn before browser tab close when unsaved changes exist
   useBeforeUnload(
@@ -85,13 +106,14 @@ export function FloorEditorPage() {
           {lastSaved && !dirty && (
             <span className="save-status">Saved {lastSaved.toLocaleTimeString()}</span>
           )}
-          {dirty && <span className="save-status dirty">Unsaved changes</span>}
+          {dirty && !saving && <span className="save-status dirty">Unsaved changes</span>}
+          {saving && <span className="save-status">Saving…</span>}
           <button
             className="btn-save"
             onClick={handleSave}
             disabled={saving || !dirty}
           >
-            {saving ? 'Saving…' : 'Save'}
+            Save
           </button>
           <ExportButton floorId={id} />
           <Link className="btn-3d" to={`/floors/${id}/3d`}>View in 3D →</Link>
