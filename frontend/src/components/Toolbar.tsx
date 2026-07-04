@@ -2,11 +2,10 @@ import { useUIStore, MIN_ZOOM, MAX_ZOOM } from '../store/uiStore'
 import { useFloorStore } from '../store/floorStore'
 import { STAGE_WIDTH, STAGE_HEIGHT, computeFitZoomAndPan } from '../canvas/fitView'
 import { computeZoomAroundPoint } from '../canvas/scale'
+import { DOOR_WIDTHS, DOOR_HEIGHTS, WINDOW_WIDTHS, WINDOW_HEIGHTS, fmtIn } from '../canvas/openingSizes'
 
 const ZOOM_STEP = 1.2
 
-// Grid size options: value in inches, label shown in the dropdown.
-// Imperial fractions down to 1/32"; metric mm steps.
 const IMPERIAL_GRID_OPTIONS: { value: number; label: string }[] = [
   { value: 12,       label: '1 ft'   },
   { value: 6,        label: '6 in'   },
@@ -42,13 +41,26 @@ export function Toolbar() {
   const pan = useUIStore((s) => s.pan)
   const setZoom = useUIStore((s) => s.setZoom)
   const setPan = useUIStore((s) => s.setPan)
+  const showFurniturePanel = useUIStore((s) => s.showFurniturePanel)
+  const setShowFurniturePanel = useUIStore((s) => s.setShowFurniturePanel)
+  const showDoorPanel = useUIStore((s) => s.showDoorPanel)
+  const setShowDoorPanel = useUIStore((s) => s.setShowDoorPanel)
+  const showWindowPanel = useUIStore((s) => s.showWindowPanel)
+  const setShowWindowPanel = useUIStore((s) => s.setShowWindowPanel)
+  const pendingDoorSubtype = useUIStore((s) => s.pendingDoorSubtype)
+  const pendingWindowSubtype = useUIStore((s) => s.pendingWindowSubtype)
+  const pendingDoorWidth = useUIStore((s) => s.pendingDoorWidth)
+  const pendingDoorHeight = useUIStore((s) => s.pendingDoorHeight)
+  const pendingWindowWidth = useUIStore((s) => s.pendingWindowWidth)
+  const pendingWindowHeight = useUIStore((s) => s.pendingWindowHeight)
+  const setPendingDoorSize = useUIStore((s) => s.setPendingDoorSize)
+  const setPendingWindowSize = useUIStore((s) => s.setPendingWindowSize)
   const undo = useFloorStore((s) => s.undo)
   const redo = useFloorStore((s) => s.redo)
   const geometry = useFloorStore((s) => s.geometry)
 
   const gridOptions = unitDisplay === 'metric' ? METRIC_GRID_OPTIONS : IMPERIAL_GRID_OPTIONS
 
-  // Find closest option value to current gridSizeInches (handles unit-switch drift)
   const selectedValue = gridOptions.reduce((best, opt) =>
     Math.abs(opt.value - gridSizeInches) < Math.abs(best.value - gridSizeInches) ? opt : best
   ).value
@@ -68,16 +80,93 @@ export function Toolbar() {
     setZoom(clampedZoom)
   }
 
+  function handleFurnitureToggle() {
+    const next = !showFurniturePanel
+    setShowFurniturePanel(next)
+    if (next && activeTool !== 'place-furniture') setActiveTool('select')
+  }
+
+  function handleDoorToggle() {
+    const next = !showDoorPanel
+    setShowDoorPanel(next)
+    if (next) setShowWindowPanel(false)
+    if (!next && activeTool === 'place-door') setActiveTool('select')
+  }
+
+  function handleWindowToggle() {
+    const next = !showWindowPanel
+    setShowWindowPanel(next)
+    if (next) setShowDoorPanel(false)
+    if (!next && activeTool === 'place-window') setActiveTool('select')
+  }
+
   return (
     <div className="toolbar">
       <button className={activeTool === 'select' ? 'active' : ''} onClick={() => setActiveTool('select')}>
         Select
       </button>
+      <span className="toolbar-sep" />
       <button className={activeTool === 'draw-room' ? 'active' : ''} onClick={() => setActiveTool('draw-room')}>
         Draw Room
       </button>
       <button className={activeTool === 'draw-wall' ? 'active' : ''} onClick={() => setActiveTool('draw-wall')}>
         Draw Wall
+      </button>
+      <span className="toolbar-sep" />
+      <button
+        className={showDoorPanel || activeTool === 'place-door' ? 'active' : ''}
+        onClick={handleDoorToggle}
+        title="Choose door type and click on a wall to place"
+      >
+        Door{pendingDoorSubtype !== 'single' ? ` · ${pendingDoorSubtype}` : ''}
+      </button>
+      <select
+        className="opening-size-select"
+        value={pendingDoorWidth}
+        onChange={(e) => setPendingDoorSize(Number(e.target.value), pendingDoorHeight)}
+        title="Door width"
+      >
+        {DOOR_WIDTHS.map((w) => <option key={w} value={w}>{fmtIn(w)}</option>)}
+      </select>
+      <select
+        className="opening-size-select"
+        value={pendingDoorHeight}
+        onChange={(e) => setPendingDoorSize(pendingDoorWidth, Number(e.target.value))}
+        title="Door height"
+      >
+        {DOOR_HEIGHTS.map((h) => <option key={h} value={h}>{fmtIn(h)}</option>)}
+      </select>
+      <span className="toolbar-sep" />
+      <button
+        className={showWindowPanel || activeTool === 'place-window' ? 'active' : ''}
+        onClick={handleWindowToggle}
+        title="Choose window type and click on a wall to place"
+      >
+        Window{pendingWindowSubtype !== 'single-hung' ? ` · ${pendingWindowSubtype}` : ''}
+      </button>
+      <select
+        className="opening-size-select"
+        value={pendingWindowWidth}
+        onChange={(e) => setPendingWindowSize(Number(e.target.value), pendingWindowHeight)}
+        title="Window width"
+      >
+        {WINDOW_WIDTHS.map((w) => <option key={w} value={w}>{fmtIn(w)}</option>)}
+      </select>
+      <select
+        className="opening-size-select"
+        value={pendingWindowHeight}
+        onChange={(e) => setPendingWindowSize(pendingWindowWidth, Number(e.target.value))}
+        title="Window height"
+      >
+        {WINDOW_HEIGHTS.map((h) => <option key={h} value={h}>{fmtIn(h)}</option>)}
+      </select>
+      <span className="toolbar-sep" />
+      <button
+        className={showFurniturePanel ? 'active' : ''}
+        onClick={handleFurnitureToggle}
+        title="Open furniture palette"
+      >
+        Furniture
       </button>
       <span className="toolbar-sep" />
       <label className="toolbar-snap-label">
@@ -102,13 +191,9 @@ export function Toolbar() {
       <span className="toolbar-sep" />
       <button onClick={handleFitToView}>Fit to View</button>
       <span className="toolbar-sep" />
-      <button onClick={() => zoomBy(1 / ZOOM_STEP)} aria-label="Zoom out">
-        −
-      </button>
+      <button onClick={() => zoomBy(1 / ZOOM_STEP)} aria-label="Zoom out">−</button>
       <span className="zoom-readout">{Math.round(zoom * 100)}%</span>
-      <button onClick={() => zoomBy(ZOOM_STEP)} aria-label="Zoom in">
-        +
-      </button>
+      <button onClick={() => zoomBy(ZOOM_STEP)} aria-label="Zoom in">+</button>
     </div>
   )
 }

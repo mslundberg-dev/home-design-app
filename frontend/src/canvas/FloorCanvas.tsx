@@ -6,17 +6,25 @@ import { useUIStore } from '../store/uiStore'
 import { Grid } from './Grid'
 import { RoomShape } from './RoomShape'
 import { WallShape } from './WallShape'
-import { computeZoomAroundPoint, screenToWorld, worldToScreen } from './scale'
+import { FurnitureShape } from './FurnitureShape'
+import { BASE_PIXELS_PER_INCH, computeZoomAroundPoint, screenToWorld, worldToScreen } from './scale'
 import { snapPoint } from './snapping'
 import { isCloseToFirstVertex, MIN_ROOM_VERTICES } from './tools/drawRoom'
 import { STAGE_WIDTH, STAGE_HEIGHT, computeFitZoomAndPan } from './fitView'
 import { MIN_ZOOM, MAX_ZOOM } from '../store/uiStore'
-import type { Point, Room, Wall } from '../types'
+import type { Opening, Point, Room, Wall } from '../types'
+import { findNearestWallHit } from './wallDetect'
+import { FURNITURE_CATALOG } from './furnitureCatalog'
+
+// Snap-to-wall threshold in screen pixels
+const WALL_SNAP_PX = 28
 
 export function FloorCanvas() {
   const geometry = useFloorStore((s) => s.geometry)
   const addRoom = useFloorStore((s) => s.addRoom)
   const addWall = useFloorStore((s) => s.addWall)
+  const addOpening = useFloorStore((s) => s.addOpening)
+  const addFurniture = useFloorStore((s) => s.addFurniture)
   const activeTool = useUIStore((s) => s.activeTool)
   const setActiveTool = useUIStore((s) => s.setActiveTool)
   const setSelectedItem = useUIStore((s) => s.setSelectedItem)
@@ -27,19 +35,31 @@ export function FloorCanvas() {
   const gridSizeInches = useUIStore((s) => s.gridSizeInches)
   const snapToGridEnabled = useUIStore((s) => s.snapToGridEnabled)
   const snapToAngleEnabled = useUIStore((s) => s.snapToAngleEnabled)
+  const pendingFurnitureType = useUIStore((s) => s.pendingFurnitureType)
+  const setPendingFurnitureType = useUIStore((s) => s.setPendingFurnitureType)
+  const pendingDoorWidth = useUIStore((s) => s.pendingDoorWidth)
+  const pendingDoorHeight = useUIStore((s) => s.pendingDoorHeight)
+  const pendingWindowWidth = useUIStore((s) => s.pendingWindowWidth)
+  const pendingWindowHeight = useUIStore((s) => s.pendingWindowHeight)
+  const pendingDoorSubtype = useUIStore((s) => s.pendingDoorSubtype)
+  const pendingWindowSubtype = useUIStore((s) => s.pendingWindowSubtype)
 
   const [draftVertices, setDraftVertices] = useState<Point[]>([])
   const [wallDraftStart, setWallDraftStart] = useState<Point | null>(null)
   const [previewPoint, setPreviewPoint] = useState<Point | null>(null)
+  const [wallHit, setWallHit] = useState<ReturnType<typeof findNearestWallHit>>(null)
+  const [furnitureCursor, setFurnitureCursor] = useState<Point | null>(null)
+
   const stageRef = useRef<Konva.Stage>(null)
   const isPanningRef = useRef(false)
   const lastPointerRef = useRef<Point | null>(null)
 
-  // Clear in-progress draft when switching tools
   useEffect(() => {
     setDraftVertices([])
     setWallDraftStart(null)
     setPreviewPoint(null)
+    setWallHit(null)
+    setFurnitureCursor(null)
   }, [activeTool])
 
   function commitRoom(vertices: Point[]) {
@@ -56,6 +76,7 @@ export function FloorCanvas() {
         thickness: 6,
         wall_type: 'exterior' as const,
         openings: [],
+        height_inches: 96,
       })),
     }
     addRoom(room)
@@ -63,8 +84,6 @@ export function FloorCanvas() {
     setPreviewPoint(null)
     setActiveTool('select')
 
-    // Auto-fit the view so every corner of the room just drawn is guaranteed
-    // to be within the visible/interactive stage area.
     const updatedGeometry = { ...geometry, rooms: [...geometry.rooms, room] }
     const fit = computeFitZoomAndPan(updatedGeometry, STAGE_WIDTH, STAGE_HEIGHT)
     if (fit) {
@@ -81,10 +100,59 @@ export function FloorCanvas() {
       thickness: 4.5,
       wall_type: 'interior',
       openings: [],
+      height_inches: 96,
     }
     addWall(wall)
     setWallDraftStart(null)
     setPreviewPoint(null)
+    setActiveTool('select')
+  }
+
+  function placeOpening(type: 'door' | 'window', worldPt: Point) {
+    const thresholdIn = WALL_SNAP_PX / (zoom * BASE_PIXELS_PER_INCH)
+    const hit = findNearestWallHit(worldPt, geometry, thresholdIn)
+    if (!hit) return
+
+    const openingWidth = type === 'door' ? pendingDoorWidth : pendingWindowWidth
+    const openingHeight = type === 'door' ? pendingDoorHeight : pendingWindowHeight
+    if (hit.wallLen < openingWidth) return
+
+    const offset = Math.max(0, Math.min(hit.wallLen - openingWidth, hit.offset - openingWidth / 2))
+    const opening: Opening = {
+      id: crypto.randomUUID(),
+      type,
+      subtype: type === 'door' ? pendingDoorSubtype : pendingWindowSubtype,
+      offset_along_edge: offset,
+      width: openingWidth,
+      height: openingHeight,
+      swing_direction: type === 'door' ? 'left' : null,
+    }
+
+    const target = hit.kind === 'edge'
+      ? { roomId: hit.roomId, edgeId: hit.edgeId }
+      : { wallId: hit.wallId }
+
+    addOpening(target, opening)
+    setActiveTool('select')
+  }
+
+  function placeFurniture(worldPt: Point) {
+    if (!pendingFurnitureType) return
+    const entry = FURNITURE_CATALOG.find((e) => e.type === pendingFurnitureType)
+    if (!entry) return
+
+    const newItem = {
+      id: crypto.randomUUID(),
+      type: pendingFurnitureType,
+      x: worldPt.x,
+      y: worldPt.y,
+      width: entry.defaultWidth,
+      height: entry.defaultHeight,
+      rotation: 0,
+    }
+    addFurniture(newItem)
+    setSelectedItem({ type: 'furniture', furnitureId: newItem.id })
+    setPendingFurnitureType(null)
     setActiveTool('select')
   }
 
@@ -94,6 +162,9 @@ export function FloorCanvas() {
         setDraftVertices([])
         setWallDraftStart(null)
         setPreviewPoint(null)
+        setWallHit(null)
+        setFurnitureCursor(null)
+        if (activeTool !== 'select') setActiveTool('select')
       } else if (e.key === 'Enter' && activeTool === 'draw-room') {
         commitRoom(draftVertices)
       }
@@ -128,15 +199,18 @@ export function FloorCanvas() {
       return
     }
 
-    if (activeTool !== 'draw-room' && activeTool !== 'draw-wall') return
     const worldPt = screenToWorld(pointer, zoom, pan)
 
     if (activeTool === 'draw-room') {
       const lastVertex = draftVertices[draftVertices.length - 1] ?? null
       setPreviewPoint(snapPoint(lastVertex, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches }))
-    } else {
-      // Angle snap relative to draft start for wall drawing
+    } else if (activeTool === 'draw-wall') {
       setPreviewPoint(snapPoint(wallDraftStart, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches }))
+    } else if (activeTool === 'place-door' || activeTool === 'place-window') {
+      const thresholdIn = WALL_SNAP_PX / (zoom * BASE_PIXELS_PER_INCH)
+      setWallHit(findNearestWallHit(worldPt, geometry, thresholdIn))
+    } else if (activeTool === 'place-furniture') {
+      setFurnitureCursor(worldPt)
     }
   }
 
@@ -150,7 +224,6 @@ export function FloorCanvas() {
       return
     }
 
-    if (activeTool !== 'draw-room' && activeTool !== 'draw-wall') return
     const worldPt = screenToWorld(pointer, zoom, pan)
 
     if (activeTool === 'draw-room') {
@@ -161,13 +234,19 @@ export function FloorCanvas() {
         return
       }
       setDraftVertices([...draftVertices, snapped])
-    } else {
+    } else if (activeTool === 'draw-wall') {
       const snapped = snapPoint(wallDraftStart, worldPt, { gridEnabled: snapToGridEnabled, angleEnabled: snapToAngleEnabled, gridSizeInches })
       if (wallDraftStart === null) {
         setWallDraftStart(snapped)
       } else {
         commitWall(wallDraftStart, snapped)
       }
+    } else if (activeTool === 'place-door') {
+      placeOpening('door', worldPt)
+    } else if (activeTool === 'place-window') {
+      placeOpening('window', worldPt)
+    } else if (activeTool === 'place-furniture') {
+      placeFurniture(worldPt)
     }
   }
 
@@ -197,7 +276,18 @@ export function FloorCanvas() {
       ? { s1: worldToScreen(wallDraftStart, zoom, pan), s2: worldToScreen(previewPoint, zoom, pan) }
       : null
 
-  const cursor = activeTool === 'draw-room' || activeTool === 'draw-wall' ? 'crosshair' : 'default'
+  // Wall-hit marker for door/window hover
+  let wallHitMarker: { x: number; y: number } | null = null
+  if (wallHit) {
+    const { wallStart: a, wallEnd: b, offset, wallLen } = wallHit
+    const t = wallLen > 0 ? offset / wallLen : 0
+    wallHitMarker = worldToScreen({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }, zoom, pan)
+  }
+
+  const ghostEntry = pendingFurnitureType ? FURNITURE_CATALOG.find((e) => e.type === pendingFurnitureType) : null
+
+  const isPlacementTool = ['draw-room', 'draw-wall', 'place-door', 'place-window', 'place-furniture'].includes(activeTool)
+  const cursor = isPlacementTool ? 'crosshair' : 'default'
 
   return (
     <Stage
@@ -220,6 +310,10 @@ export function FloorCanvas() {
 
         {geometry.walls.map((wall) => (
           <WallShape key={wall.id} wall={wall} zoom={zoom} pan={pan} />
+        ))}
+
+        {(geometry.furniture ?? []).map((item) => (
+          <FurnitureShape key={item.id} item={item} zoom={zoom} pan={pan} />
         ))}
 
         {/* Draw-room preview */}
@@ -249,6 +343,41 @@ export function FloorCanvas() {
             fill="#2563eb"
           />
         )}
+
+        {/* Door/window wall hit marker */}
+        {wallHitMarker && (activeTool === 'place-door' || activeTool === 'place-window') && (
+          <Circle
+            x={wallHitMarker.x}
+            y={wallHitMarker.y}
+            radius={6}
+            fill={activeTool === 'place-door' ? '#f59e0b' : '#10b981'}
+            opacity={0.85}
+            listening={false}
+          />
+        )}
+
+        {/* Ghost furniture outline at cursor */}
+        {activeTool === 'place-furniture' && furnitureCursor && ghostEntry && (() => {
+          const s = worldToScreen(furnitureCursor, zoom, pan)
+          const wPx = ghostEntry.defaultWidth * BASE_PIXELS_PER_INCH * zoom
+          const hPx = ghostEntry.defaultHeight * BASE_PIXELS_PER_INCH * zoom
+          return (
+            <Line
+              points={[
+                s.x - wPx / 2, s.y - hPx / 2,
+                s.x + wPx / 2, s.y - hPx / 2,
+                s.x + wPx / 2, s.y + hPx / 2,
+                s.x - wPx / 2, s.y + hPx / 2,
+                s.x - wPx / 2, s.y - hPx / 2,
+              ]}
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              dash={[4, 3]}
+              opacity={0.7}
+              listening={false}
+            />
+          )
+        })()}
       </Layer>
     </Stage>
   )

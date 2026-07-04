@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useNavigate, useParams, useBeforeUnload } from 'react-router-dom'
+import { useNavigate, useParams, useBeforeUnload, Link } from 'react-router-dom'
 import { getFloor, saveFloorGeometry } from '../api'
 import { FloorCanvas } from '../canvas/FloorCanvas'
 import { Toolbar } from '../components/Toolbar'
 import { UnitToggle } from '../components/UnitToggle'
 import { PropertiesPanel } from '../components/PropertiesPanel'
 import { ExportButton } from '../components/ExportButton'
+import { FurniturePanel } from '../components/FurniturePanel'
+import { DoorPanel, WindowPanel } from '../components/DoorWindowPanel'
 import { useFloorStore } from '../store/floorStore'
 
 export function FloorEditorPage() {
@@ -92,6 +94,7 @@ export function FloorEditorPage() {
             {saving ? 'Saving…' : 'Save'}
           </button>
           <ExportButton floorId={id} />
+          <Link className="btn-3d" to={`/floors/${id}/3d`}>View in 3D →</Link>
         </div>
       </div>
 
@@ -101,6 +104,9 @@ export function FloorEditorPage() {
           <UnitToggle />
         </div>
         <div className="floor-editor-body">
+          <DoorPanel />
+          <WindowPanel />
+          <FurniturePanel />
           <FloorCanvas />
           <PropertiesPanel />
         </div>

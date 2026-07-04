@@ -15,6 +15,7 @@ class Point(BaseModel):
 class Opening(BaseModel):
     id: str
     type: Literal["door", "window"]
+    subtype: str | None = None
     offset_along_edge: float
     width: float
     height: float
@@ -28,6 +29,7 @@ class Edge(BaseModel):
     thickness: float = 6.0
     wall_type: Literal["exterior", "interior"] = "interior"
     openings: list[Opening] = []
+    height_inches: float = 96.0  # default 8 ft
 
 
 class Room(BaseModel):
@@ -47,6 +49,17 @@ class Wall(BaseModel):
     thickness: float = 4.5
     wall_type: Literal["exterior", "interior"] = "interior"
     openings: list[Opening] = []
+    height_inches: float = 96.0  # default 8 ft
+
+
+class Furniture(BaseModel):
+    id: str
+    type: str
+    x: float
+    y: float
+    width: float
+    height: float
+    rotation: float = 0.0
 
 
 class FloorGeometry(BaseModel):
@@ -54,6 +67,7 @@ class FloorGeometry(BaseModel):
     north_angle_degrees: float = 0.0
     rooms: list[Room] = []
     walls: list[Wall] = []
+    furniture: list[Furniture] = []
 
 
 # ---- Project ----

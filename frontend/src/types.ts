@@ -13,6 +13,7 @@ export type WallType = 'exterior' | 'interior'
 export interface Opening {
   id: string
   type: OpeningType
+  subtype?: string | null
   offset_along_edge: number
   width: number
   height: number
@@ -26,6 +27,7 @@ export interface Edge {
   thickness: number
   wall_type: WallType
   openings: Opening[]
+  height_inches: number
 }
 
 export interface Room {
@@ -43,6 +45,24 @@ export interface Wall {
   thickness: number
   wall_type: WallType
   openings: Opening[]
+  height_inches: number
+}
+
+export type FurnitureType =
+  | 'sofa' | 'armchair' | 'dining-chair'
+  | 'dining-table' | 'coffee-table' | 'desk' | 'side-table'
+  | 'twin-bed' | 'full-bed' | 'queen-bed' | 'king-bed'
+  | 'toilet' | 'bathtub' | 'shower' | 'bathroom-sink'
+  | 'refrigerator' | 'range' | 'kitchen-sink'
+
+export interface Furniture {
+  id: string
+  type: FurnitureType
+  x: number        // center x, world inches
+  y: number        // center y, world inches
+  width: number    // inches
+  height: number   // inches
+  rotation: number // degrees
 }
 
 export interface FloorGeometry {
@@ -50,6 +70,7 @@ export interface FloorGeometry {
   north_angle_degrees: number
   rooms: Room[]
   walls: Wall[]
+  furniture: Furniture[]
 }
 
 export interface Project {

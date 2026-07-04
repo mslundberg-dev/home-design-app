@@ -10,6 +10,7 @@ import {
   DOOR_WIDTHS, DOOR_HEIGHTS, WINDOW_WIDTHS, WINDOW_HEIGHTS, fmtIn,
   DEFAULT_DOOR_WIDTH, DEFAULT_DOOR_HEIGHT, DEFAULT_WINDOW_WIDTH, DEFAULT_WINDOW_HEIGHT,
 } from '../canvas/openingSizes'
+import { DOOR_TYPES, WINDOW_TYPES } from '../canvas/openingTypes'
 
 const MIN_WALL_LENGTH_IN = 1
 
@@ -136,6 +137,7 @@ export function PropertiesPanel() {
     const opening: Opening = {
       id: crypto.randomUUID(),
       type,
+      subtype: type === 'door' ? 'single' : 'single-hung',
       offset_along_edge: offset,
       width,
       height: defaultH,
@@ -402,6 +404,13 @@ function OpeningRow({ opening, wallLengthInches, target, unitDisplay }: OpeningR
     Math.abs(b - opening.height) < Math.abs(a - opening.height) ? b : a,
   )
 
+  const typeOptions = opening.type === 'door' ? DOOR_TYPES : WINDOW_TYPES
+  const currentSubtype = opening.subtype ?? (opening.type === 'door' ? 'single' : 'single-hung')
+
+  function changeSubtype(val: string) {
+    updateOpening(target, { ...opening, subtype: val })
+  }
+
   return (
     <div className="opening-row">
       <div className="opening-row-header">
@@ -410,6 +419,18 @@ function OpeningRow({ opening, wallLengthInches, target, unitDisplay }: OpeningR
       </div>
 
       <div className="opening-fields">
+        <label className="opening-field">
+          <span>Type</span>
+          <select
+            value={currentSubtype}
+            onChange={(e) => changeSubtype(e.target.value)}
+            className="opening-select"
+          >
+            {typeOptions.map((t) => (
+              <option key={t.subtype} value={t.subtype}>{t.label}</option>
+            ))}
+          </select>
+        </label>
         <label className="opening-field">
           <span>Width</span>
           <select
