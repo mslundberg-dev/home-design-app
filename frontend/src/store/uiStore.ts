@@ -60,6 +60,8 @@ interface UIState {
   // Format: 'room:{roomId}:{edgeId}' or 'wall:{wallId}'
   elevationRef: string | null
   setElevationRef: (ref: string | null) => void
+  elevationPanelHeight: number
+  setElevationPanelHeight: (h: number) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -101,4 +103,6 @@ export const useUIStore = create<UIState>((set) => ({
 
   elevationRef: null,
   setElevationRef: (ref) => set({ elevationRef: ref }),
+  elevationPanelHeight: 260,
+  setElevationPanelHeight: (h) => set({ elevationPanelHeight: h }),
 }))

@@ -10,6 +10,7 @@ import { FurniturePanel } from '../components/FurniturePanel'
 import { DoorPanel, WindowPanel } from '../components/DoorWindowPanel'
 import { ElevationPanel } from '../components/ElevationPanel'
 import { useFloorStore } from '../store/floorStore'
+import { useUIStore } from '../store/uiStore'
 
 export function FloorEditorPage() {
   const { floorId } = useParams<{ floorId: string }>()
@@ -18,6 +19,8 @@ export function FloorEditorPage() {
 
   const geometry = useFloorStore((s) => s.geometry)
   const dirty = useFloorStore((s) => s.dirty)
+  const elevationRef = useUIStore((s) => s.elevationRef)
+  const elevationPanelHeight = useUIStore((s) => s.elevationPanelHeight)
   const loadGeometry = useFloorStore((s) => s.loadGeometry)
   const markSaved = useFloorStore((s) => s.markSaved)
 
@@ -121,7 +124,7 @@ export function FloorEditorPage() {
         </div>
       </div>
 
-      <div className="floor-editor">
+      <div className="floor-editor" style={{ paddingBottom: elevationRef ? elevationPanelHeight : 0 }}>
         <div className="floor-editor-header">
           <Toolbar />
           <UnitToggle />

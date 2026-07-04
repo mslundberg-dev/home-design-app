@@ -7,9 +7,8 @@ import { FURNITURE_CATALOG, DEFAULT_Z_ELEVATION } from '../canvas/furnitureCatal
 import type { Furniture } from '../types'
 
 const CABINET_TYPES = FURNITURE_CATALOG.filter((e) => e.category === 'Cabinets')
-const MIN_HEIGHT = 160
-const MAX_HEIGHT = 600
-const DEFAULT_HEIGHT = 260
+const MIN_HEIGHT = 120
+const MAX_HEIGHT = Math.round(window.innerHeight * 0.85)
 
 export function ElevationPanel() {
   const elevationRef = useUIStore((s) => s.elevationRef)
@@ -20,15 +19,21 @@ export function ElevationPanel() {
   const updateFurnitureLive = useFloorStore((s) => s.updateFurnitureLive)
   const updateFurniture = useFloorStore((s) => s.updateFurniture)
   const updateOpening = useFloorStore((s) => s.updateOpening)
+  const panelHeight = useUIStore((s) => s.elevationPanelHeight)
+  const setPanelHeightStore = useUIStore((s) => s.setElevationPanelHeight)
 
   const [selectedElevationItem, setSelectedElevationItem] = useState<Furniture | null>(null)
   const [selectedOpening, setSelectedOpening] = useState<SelectedOpening | null>(null)
   const [zInput, setZInput] = useState('')
   const [openingWidthInput, setOpeningWidthInput] = useState('')
   const [openingOffsetInput, setOpeningOffsetInput] = useState('')
-  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT)
   const dragStartY = useRef<number | null>(null)
-  const dragStartHeight = useRef<number>(DEFAULT_HEIGHT)
+  const dragStartHeight = useRef<number>(panelHeight)
+
+  function setPanelHeight(h: number) {
+    dragStartHeight.current = h
+    setPanelHeightStore(h)
+  }
 
   // Auto-switch elevation canvas when user selects a different wall (panel must already be open)
   useEffect(() => {
@@ -136,8 +141,9 @@ export function ElevationPanel() {
   // Drag-to-resize: dragging the top handle up makes the panel taller
   function onHandleMouseDown(e: React.MouseEvent) {
     e.preventDefault()
+    e.stopPropagation()
     dragStartY.current = e.clientY
-    dragStartHeight.current = panelHeight
+    dragStartHeight.current = panelHeight  // capture current height at drag start
 
     function onMouseMove(ev: MouseEvent) {
       if (dragStartY.current === null) return
