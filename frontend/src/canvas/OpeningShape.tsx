@@ -7,13 +7,17 @@ interface OpeningShapeProps {
   /** Screen-space end of the opening (latch side for doors). */
   p2: { x: number; y: number }
   opening: Opening
+  isSelected?: boolean
+  onClick?: () => void
 }
 
 const STROKE = '#374151'
+const STROKE_SELECTED = '#2563eb'
 const STROKE_WIDTH = 2
 const WINDOW_SASH_OFFSET = 5  // px offset each side of wall centerline for window sash lines
+const HIT_WIDTH = 16           // transparent hit area width in px
 
-export function OpeningShape({ p1, p2, opening }: OpeningShapeProps) {
+export function OpeningShape({ p1, p2, opening, isSelected = false, onClick }: OpeningShapeProps) {
   const dx = p2.x - p1.x
   const dy = p2.y - p1.y
   const widthPx = Math.hypot(dx, dy)
@@ -29,6 +33,9 @@ export function OpeningShape({ p1, p2, opening }: OpeningShapeProps) {
   const nly = -ux
   const nrx = -uy
   const nry = ux
+
+  const stroke = isSelected ? STROKE_SELECTED : STROKE
+  const listening = onClick != null
 
   if (opening.type === 'door') {
     const swing = opening.swing_direction ?? 'left'
@@ -49,13 +56,26 @@ export function OpeningShape({ p1, p2, opening }: OpeningShapeProps) {
       `${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
 
     return (
-      <Path
-        data={pathData}
-        stroke={STROKE}
-        strokeWidth={STROKE_WIDTH}
-        fillEnabled={false}
-        listening={false}
-      />
+      <>
+        <Path
+          data={pathData}
+          stroke={stroke}
+          strokeWidth={STROKE_WIDTH}
+          fillEnabled={false}
+          listening={false}
+        />
+        {/* Transparent hit area along the door panel line */}
+        {listening && (
+          <Line
+            points={[p1.x, p1.y, p2.x, p2.y]}
+            stroke="transparent"
+            hitStrokeWidth={HIT_WIDTH}
+            onClick={onClick}
+            onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer' }}
+            onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default' }}
+          />
+        )}
+      </>
     )
   }
 
@@ -66,31 +86,42 @@ export function OpeningShape({ p1, p2, opening }: OpeningShapeProps) {
       {/* Sash line — left side */}
       <Line
         points={[p1.x + nlx * s, p1.y + nly * s, p2.x + nlx * s, p2.y + nly * s]}
-        stroke={STROKE}
+        stroke={stroke}
         strokeWidth={STROKE_WIDTH}
         listening={false}
       />
       {/* Sash line — right side */}
       <Line
         points={[p1.x + nrx * s, p1.y + nry * s, p2.x + nrx * s, p2.y + nry * s]}
-        stroke={STROKE}
+        stroke={stroke}
         strokeWidth={STROKE_WIDTH}
         listening={false}
       />
       {/* Jamb at p1 */}
       <Line
         points={[p1.x + nlx * s, p1.y + nly * s, p1.x + nrx * s, p1.y + nry * s]}
-        stroke={STROKE}
+        stroke={stroke}
         strokeWidth={STROKE_WIDTH}
         listening={false}
       />
       {/* Jamb at p2 */}
       <Line
         points={[p2.x + nlx * s, p2.y + nly * s, p2.x + nrx * s, p2.y + nry * s]}
-        stroke={STROKE}
+        stroke={stroke}
         strokeWidth={STROKE_WIDTH}
         listening={false}
       />
+      {/* Transparent hit area along opening span */}
+      {listening && (
+        <Line
+          points={[p1.x, p1.y, p2.x, p2.y]}
+          stroke="transparent"
+          hitStrokeWidth={HIT_WIDTH}
+          onClick={onClick}
+          onMouseEnter={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'pointer' }}
+          onMouseLeave={(e) => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default' }}
+        />
+      )}
     </>
   )
 }

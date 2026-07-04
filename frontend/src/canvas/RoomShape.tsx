@@ -170,7 +170,22 @@ export function RoomShape({ room, zoom, pan }: RoomShapeProps) {
               const wPx = inchesToPixels(opening.width, zoom)
               const op1 = { x: s1.x + ux * oPx, y: s1.y + uy * oPx }
               const op2 = { x: s1.x + ux * (oPx + wPx), y: s1.y + uy * (oPx + wPx) }
-              return <OpeningShape key={opening.id} p1={op1} p2={op2} opening={opening} />
+              const isOpeningSelected =
+                activeTool === 'select' &&
+                selectedItem?.type === 'opening' &&
+                (selectedItem as Extract<SelectedItem, { type: 'opening' }>).openingId === opening.id
+              return (
+                <OpeningShape
+                  key={opening.id}
+                  p1={op1}
+                  p2={op2}
+                  opening={opening}
+                  isSelected={isOpeningSelected}
+                  onClick={activeTool === 'select' ? () =>
+                    setSelectedItem({ type: 'opening', openingId: opening.id, roomId: room.id, edgeId: edge.id })
+                  : undefined}
+                />
+              )
             })}
 
             {/* Dimension label */}
