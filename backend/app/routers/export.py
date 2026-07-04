@@ -1,4 +1,5 @@
 import io
+import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -26,9 +27,11 @@ def export_floor_pdf(floor_id: int, db: Session = Depends(get_db)):
     render_floor_pdf(buf, geometry, project_name, floor.name)
     buf.seek(0)
 
-    filename = f"{project_name} - {floor.name}.pdf".replace("/", "-")
+    raw_name = f"{project_name} - {floor.name}.pdf"
+    # Strip characters that would break the Content-Disposition header value
+    safe_name = re.sub(r'[\r\n"/\\]', "-", raw_name)
     return StreamingResponse(
         buf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
     )
