@@ -200,7 +200,10 @@ home-design-app/
             ├── Toolbar.tsx         # tool buttons, snap toggles, undo/redo, zoom controls
             ├── UnitToggle.tsx
             ├── PropertiesPanel.tsx # typed exact-dimension input for selected element
-            └── ExportButton.tsx
+            ├── ExportButton.tsx
+            ├── ElevationPanel.tsx  # fixed-position wall elevation overlay, resize handle
+            ├── DoorPanel.tsx / WindowPanel.tsx / FurniturePanel.tsx
+            └── ElevationCanvas.tsx # Konva elevation view: openings + furniture z-stack
 ```
 
 ## Packages
@@ -230,6 +233,7 @@ three.js viewer later requires no schema change.
 | M2 | Doors/windows + freestanding walls | `DrawWallTool`, `PlaceOpeningTool` with typed width via `PropertiesPanel`, door-swing arc glyph, window double-line glyph, opening offset validation against host wall length | ✅ Done |
 | M3 | Persistence | `ProjectListPage` / `ProjectDetailPage`, editor loads geometry on mount, Save button PUTs whole geometry blob, dirty-flag warning on navigate-away | ✅ Done |
 | M4 | PDF export | `export.py` + `pdf/` rendering: title block (name, date, scale), to-scale rooms/walls, dimension + area text, north arrow, scale bar | ✅ Done |
+| A | Wall elevation view | Click any wall/edge to open a to-scale elevation canvas (fixed-position overlay, drag to resize). Place and drag upper/base cabinets with z-elevation control. Door/window openings are selectable, draggable horizontally, and editable (width, offset) from the header. | ✅ Done |
 
 ### Demo criteria
 
